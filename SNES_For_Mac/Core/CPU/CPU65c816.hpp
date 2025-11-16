@@ -126,5 +126,25 @@ private:
     void op_TDC();
     void op_TCS();
     void op_TSC();
+    // Stack Operations
+    void op_PHA();
+    void op_PHX();
+    void op_PHY();
+    void op_PHP();
+    void op_PHD();
+    void op_PHB();
+    void op_PHK();
+    void op_PLA();
+    void op_PLX();
+    void op_PLY();
+    void op_PLP();
+    void op_PLD();
+    void op_PLB();
+    // arithmetic operations
+    void op_ADC(uint32 address);
+    void op_SBC(uint32 address);
+    // Helper for overflow calculation
+    bool checkOverflow8(uint8 a, uint b, uint8 result);
+    bool checkOverflow16(uint16 a, uint16 b, uint result);
 };
 #endif

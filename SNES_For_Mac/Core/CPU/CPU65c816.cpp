@@ -183,6 +183,104 @@ int CPU65c816::decodeAndExecute(uint8 opcode) {
         case 0x3B:
             op_TSC();
             return 2;
+        case 0x48:              // PHA
+            op_PHA();
+            return isMemory8Bit() ? 3 : 4;
+        case 0xDA:              // PHX
+            op_PHX();
+            return isIndex8Bit() ? 3 : 4;
+        case 0x5A:              // PHY
+            op_PHY();
+            return isIndex8Bit() ? 3 : 4;
+        case 0x08:              // PHP
+            op_PHP();
+            return 3;
+        case 0x0B:
+            op_PHD();
+            return 4;
+        case 0x8B:
+            op_PHB();
+            return 3;
+        case 0x4B:
+            op_PHK();
+            return 3;
+        case 0x68:
+            op_PLA();
+            return isMemory8Bit() ? 4 : 5;
+        case 0xFA:
+            op_PLX();
+            return isIndex8Bit() ? 4 : 5;
+        case 0x7A:
+            op_PLY();
+            return isIndex8Bit() ? 4 : 5;
+        case 0x28:
+            op_PLP();
+            return 4;
+        case 0x2B:
+            op_PLD();
+            return 5;
+        case 0xAB:
+            op_PLB();
+            return 4;
+        case 0x69:
+            if (isMemory8Bit()) {
+                op_ADC(getAddress_Immediate());
+                return 2;
+            } else {
+                op_ADC(getAddress_Immediate());
+                return 3;
+            }
+        case 0x65:
+            op_ADC(getAddress_Direct());
+            return isMemory8Bit() ? 3 : 4;
+        case 0x75:
+            op_ADC(getAddress_DirectX());
+            return isMemory8Bit() ? 4 : 5;
+        case 0x6D:
+            op_ADC(getAddress_Absolute());
+            return isMemory8Bit() ? 4 : 5;
+        case 0x7D:
+            op_ADC(getAddress_AbsoluteX());
+            return isMemory8Bit() ? 4 : 5;
+        case 0x79:
+            op_ADC(getAddress_AbsoluteY());
+            return isMemory8Bit() ? 4 : 5;
+        case 0x61:
+            op_ADC(getAddress_IndirectX());
+            return isMemory8Bit() ? 6 : 7;
+        case 0x71:
+            op_ADC(getAddress_IndirectY());
+            return isMemory8Bit() ? 5 : 6;
+        // SBC - subtract with Carry
+        case 0xE9:
+            if (isMemory8Bit()) {
+                op_SBC(getAddress_Immediate());
+                return 2;
+            } else {
+                op_SBC(getAddress_Immediate());
+                return 3;
+            }
+        case 0xE5:
+            op_SBC(getAddress_Direct());
+            return isMemory8Bit() ? 3 : 4;
+        case 0xF5:
+            op_SBC(getAddress_DirectX());
+            return isMemory8Bit() ? 4 : 5;
+        case 0xED:
+            op_SBC(getAddress_Absolute());
+            return isMemory8Bit() ? 4 : 5;
+        case 0xFD:
+            op_SBC(getAddress_AbsoluteX());
+            return isMemory8Bit() ? 4 : 5;
+        case 0xF9:
+            op_SBC(getAddress_AbsoluteY());
+            return isMemory8Bit() ? 4 : 5;
+        case 0xE1:
+            op_SBC(getAddress_IndirectX());
+            return isMemory8Bit() ? 6 : 7;
+        case 0xF1:
+            op_SBC(getAddress_IndirectY());
+            return isMemory8Bit() ? 5 : 6;
         default:
             // Unknown opcode - for now just NOP
             return 2;
@@ -399,4 +497,246 @@ void CPU65c816::op_TSC() {
     // Always 16-bit transfer
     registers.A = registers.SP;
     updateNZ16(registers.A);
+}
+
+void CPU65c816::op_PHA() {
+    // Push Accumulator
+    if (isMemory8Bit()) {
+        push8(registers.A & 0xFF);
+    } else {
+        push16(registers.A);
+    }
+    // Note: PHA DOES NOT affect flags!
+}
+
+void CPU65c816::op_PHX() {
+    // Push X
+    if (isIndex8Bit()) {
+        push8(registers.X & 0xFF);
+    } else {
+        push16(registers.X);
+    }
+    // Note: PHX DOES NOT affect flags!
+}
+
+void CPU65c816::op_PHY() {
+    // Push Y
+    if (isIndex8Bit()) {
+        push8(registers.Y & 0xFF);
+    } else {
+        push16(registers.Y);
+    }
+    // Note: PHY DOES NOT affect flags!
+}
+
+void CPU65c816::op_PHP() {
+    push8(registers.P);
+    // Note: PHP DOES NOT affect flags!
+}
+
+void CPU65c816::op_PHD() {
+    // Push Direct Page (always 16-bit)
+    push16(registers.D);
+    // Note: PHD DOES NOT affect flags!
+}
+
+void CPU65c816::op_PHB() {
+    // Push Data Bank
+    push8(registers.DBR);
+    // Note: PHB DOES NOT affect flags!
+}
+
+void CPU65c816::op_PHK() {
+    // Push Program Bank
+    push8(registers.PBR);
+    // Note: PHK DOES NOT affect flags!
+}
+
+void CPU65c816::op_PLA() {
+    // Pull Accumulator
+    if (isMemory8Bit()) {
+        uint8 value = pull8();
+        registers.A = (registers.A & 0xFF00) | value;
+        updateNZ8(value);
+    } else {
+        registers.A = pull16();
+        updateNZ16(registers.A);
+    }
+}
+
+void CPU65c816::op_PLX() {
+    // Pull X
+    if (isIndex8Bit()) {
+        registers.X = pull8();
+        updateNZ8(registers.X & 0xFF);
+    } else {
+        registers.X = pull16();
+        updateNZ16(registers.X);
+    }
+}
+
+void CPU65c816::op_PLY() {
+    // Pull Y
+    if (isIndex8Bit()) {
+        registers.Y = pull8();
+        updateNZ8(registers.Y & 0xFF);
+    } else {
+        registers.Y = pull16();
+        updateNZ16(registers.Y);
+    }
+}
+
+void CPU65c816::op_PLP() {
+    // Pull Processor Status
+    registers.P = pull8();
+    // Note: PLP affects ALL flags (it restores the entire P register!)
+    // in emulation mode, bit 5(M flag) and bit 4(X flag) are forced to 1
+    if (registers.E) {
+        registers.P |= 0x30;  // Force M and X to 1 in emulation mode
+    }
+}
+
+void CPU65c816::op_PLD() {
+    // Pull Direct Page (always 16-bit)
+    registers.D = pull16();
+    updateNZ16(registers.D);
+}
+
+void CPU65c816::op_PLB() {
+    // Pull Data Bank
+    registers.DBR = pull8();
+    updateNZ8(registers.DBR);
+}
+
+bool CPU65c816::checkOverflow8(uint8 a, uint b, uint8 result) {
+    // Overflow occurs when:
+    // - Adding 2 positive numbers gives negative result
+    // - Adding 2 negative numbers gives positive result
+    // Check if sign bits of operands are same, but different from result
+    return ((a ^ result) & (b ^ result) & 0x80) != 0;
+}
+
+bool CPU65c816::checkOverflow16(uint16 a, uint16 b, uint result) {
+    return ((a ^ result) & (b ^ result) & 0x8000) != 0;
+}
+
+void CPU65c816::op_ADC(uint32 address) {
+    if (isMemory8Bit()) {
+        // 8-bit operation
+        uint8 operand = read8(address);
+        uint8 a = registers.A & 0xFF;
+        uint8 carry = getFlag(FLAG_CARRY) ? 1 : 0;
+        
+        if (getFlag(FLAG_DECIMAL)) {
+            // BCD mode (optional - can implement later)
+            // For now just do binary
+            uint16 result = a + operand + carry;
+            // Set carry if result > 0xFF
+            setFlag(FLAG_CARRY, result > 0xFF);
+            uint8 result8 = result & 0xFF;
+            // Set overflow
+            setFlag(FLAG_OVERFLOW, checkOverflow8(a, operand, result8));
+            // Update A (preserve high byte)
+            registers.A = (registers.A & 0xFF00) | result8;
+            // Update N and Z
+            updateNZ8(result8);
+        } else {
+            // Binary mode
+            uint16 result = a + operand + carry;
+            // Set carry if result > 0xFF
+            setFlag(FLAG_CARRY, result > 0xFF);
+            uint8 result8 = result & 0xFF;
+            // Set overflow
+            setFlag(FLAG_OVERFLOW, checkOverflow8(a, operand, result8));
+            // Update A (preserve high byte)
+            registers.A = (registers.A & 0xFF00) | result8;
+            // Update N and Z
+            updateNZ8(result8);
+        }
+    } else {
+        // 16-bit operation
+        uint16 operand = read16(address);
+        uint16 a = registers.A;
+        uint16 carry = getFlag(FLAG_CARRY) ? 1 : 0;
+        
+        if (getFlag(FLAG_DECIMAL)) {
+            // BCD mode (optional - cam implement later)
+            uint32 result = a + operand + carry;
+            setFlag(FLAG_CARRY, result > 0xFFFF);
+            uint16 result16 = result & 0xFFFF;
+            setFlag(FLAG_OVERFLOW, checkOverflow16(a, operand, result16));
+            registers.A = result16;
+            updateNZ16(result16);
+        } else {
+            // Binary mode
+            uint32 result = a + operand + carry;
+            setFlag(FLAG_CARRY, result > 0xFFFF);
+            uint16 result16 = result & 0xFFFF;
+            setFlag(FLAG_OVERFLOW, checkOverflow16(a, operand, result16));
+            registers.A = result16;
+            updateNZ16(result16);
+        }
+    }
+}
+
+void CPU65c816::op_SBC(uint32 address) {
+    if (isMemory8Bit()) {
+        // 8-bit operation
+        uint8 operand = read8(address);
+        uint8 a = registers.A & 0xFF;
+        uint8 carry = getFlag(FLAG_CARRY) ? 1 : 0;
+        
+        if (getFlag(FLAG_DECIMAL)) {
+            // BCD mode (optional - can implement later)
+            // For SBC: A = A - operand - (1 - carry)
+            // Which is: A = A - operand - !carry
+            uint16 result = a - operand - (1 - carry);
+            // Carry is SET if NO borrow occurred (result >= 0)
+            setFlag(FLAG_CARRY, (result & 0x100) == 0);
+            
+            uint8 result8 = result & 0xFF;
+            
+            // Overflow for subtraction
+            // V = (A ^ operand) & (A ^ result) & 0x80
+            setFlag(FLAG_OVERFLOW, ((a ^ operand) & (a ^ result) & 0x80) != 0);
+            
+            registers.A = (registers.A & 0xFF00) | result8;
+            updateNZ8(result8);
+        } else {
+            // Binary mode
+            // SBC: A = A - operand - (1 - carry)
+            uint16 result = a - operand - (1 - carry);
+            setFlag(FLAG_CARRY, (result & 0x100) == 0);
+            
+            uint8 result8 = result & 0xFF;
+            
+            // Overflow for subtraction
+            setFlag(FLAG_OVERFLOW, ((a ^ operand) & (a ^ result8) & 0x80) != 0);
+            registers.A = (registers.A & 0xFF00) | result8;
+            updateNZ8(result8);
+        }
+    } else {
+        // 16-bit operation
+        uint16 operand = read16(address);
+        uint16 a = registers.A;
+        uint16 carry = getFlag(FLAG_CARRY) ? 1 : 0;
+        
+        if (getFlag(FLAG_DECIMAL)) {
+            // BCD mode (optional)
+            uint32 result = a - operand - (1 - carry);
+            setFlag(FLAG_CARRY, (result & 0x10000) == 0);
+            uint16 result16 = result & 0xFFFF;
+            setFlag(FLAG_OVERFLOW, ((a ^ operand) & (a ^ result16) & 0x8000) != 0);
+            registers.A = result16;
+            updateNZ16(result16);
+        } else {
+            // Binary mode
+            uint32 result = a - operand - (1 - carry);
+            setFlag(FLAG_CARRY, (result & 0x10000) == 0);
+            uint16 result16 = result & 0xFFFF;
+            setFlag(FLAG_OVERFLOW, ((a ^ operand) & (a ^ result16) & 0x8000) != 0);
+            registers.A = result16;
+            updateNZ16(result16);
+        }
+    }
 }

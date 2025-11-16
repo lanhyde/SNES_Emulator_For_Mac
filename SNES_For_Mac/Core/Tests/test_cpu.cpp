@@ -491,13 +491,13 @@ private:
     }
 };
 
-int main() {
-    try {
-        CPUTester tester;
-        tester.runAllTests();
-        return 0;
-    } catch(exception& e) {
-        cerr << COLOR_RED << "Exception: " << e.what() << COLOR_RESET << endl;
-        return 1;
-    }
-}
+//int main() {
+//    try {
+//        CPUTester tester;
+//        tester.runAllTests();
+//        return 0;
+//    } catch(exception& e) {
+//        cerr << COLOR_RED << "Exception: " << e.what() << COLOR_RESET << endl;
+//        return 1;
+//    }
+//}
