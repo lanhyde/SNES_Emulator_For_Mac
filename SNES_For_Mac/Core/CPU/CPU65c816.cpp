@@ -281,6 +281,266 @@ int CPU65c816::decodeAndExecute(uint8 opcode) {
         case 0xF1:
             op_SBC(getAddress_IndirectY());
             return isMemory8Bit() ? 5 : 6;
+        case 0xE8: // INX
+            op_INX();
+            return 2;
+
+        case 0xC8: // INY
+            op_INY();
+            return 2;
+
+        case 0xCA: // DEX
+            op_DEX();
+            return 2;
+
+        case 0x88: // DEY
+            op_DEY();
+            return 2;
+
+        // INC - Increment Memory/Accumulator
+        case 0x1A: // INC A
+            op_INC_A();
+            return 2;
+
+        case 0xE6: // INC Direct Page
+            op_INC(getAddress_Direct());
+            return isMemory8Bit() ? 5 : 6;
+
+        case 0xF6: // INC Direct Page,X
+            op_INC(getAddress_DirectX());
+            return isMemory8Bit() ? 6 : 7;
+
+        case 0xEE: // INC Absolute
+            op_INC(getAddress_Absolute());
+            return isMemory8Bit() ? 6 : 7;
+
+        case 0xFE: // INC Absolute,X
+            op_INC(getAddress_AbsoluteX());
+            return isMemory8Bit() ? 7 : 8;
+
+        // DEC - Decrement Memory/Accumulator
+        case 0x3A: // DEC A
+            op_DEC_A();
+            return 2;
+
+        case 0xC6: // DEC Direct Page
+            op_DEC(getAddress_Direct());
+            return isMemory8Bit() ? 5 : 6;
+
+        case 0xD6: // DEC Direct Page,X
+            op_DEC(getAddress_DirectX());
+            return isMemory8Bit() ? 6 : 7;
+
+        case 0xCE: // DEC Absolute
+            op_DEC(getAddress_Absolute());
+            return isMemory8Bit() ? 6 : 7;
+
+        case 0xDE: // DEC Absolute,X
+            op_DEC(getAddress_AbsoluteX());
+            return isMemory8Bit() ? 7 : 8;
+        case 0x29: // AND Immediate
+            if (isMemory8Bit()) {
+                op_AND(getAddress_Immediate());
+                return 2;
+            } else {
+                op_AND(getAddress_Immediate());
+                return 3;
+            }
+        case 0x25: // AND Direct Page
+            op_AND(getAddress_Direct());
+            return isMemory8Bit() ? 3 : 4;
+
+        case 0x35: // AND Direct Page,X
+            op_AND(getAddress_DirectX());
+            return isMemory8Bit() ? 4 : 5;
+
+        case 0x2D: // AND Absolute
+            op_AND(getAddress_Absolute());
+            return isMemory8Bit() ? 4 : 5;
+
+        case 0x3D: // AND Absolute,X
+            op_AND(getAddress_AbsoluteX());
+            return isMemory8Bit() ? 4 : 5;
+
+        case 0x39: // AND Absolute,Y
+            op_AND(getAddress_AbsoluteY());
+            return isMemory8Bit() ? 4 : 5;
+
+        case 0x21: // AND (Direct Page,X)
+            op_AND(getAddress_IndirectX());
+            return isMemory8Bit() ? 6 : 7;
+
+        case 0x31: // AND (Direct Page),Y
+            op_AND(getAddress_IndirectY());
+            return isMemory8Bit() ? 5 : 6;
+
+        // ORA - Bitwise OR
+        case 0x09: // ORA Immediate
+            if (isMemory8Bit()) {
+                op_ORA(getAddress_Immediate());
+                return 2;
+            } else {
+                op_ORA(getAddress_Immediate());
+                return 3;
+            }
+
+        case 0x05: // ORA Direct Page
+            op_ORA(getAddress_Direct());
+            return isMemory8Bit() ? 3 : 4;
+
+        case 0x15: // ORA Direct Page,X
+            op_ORA(getAddress_DirectX());
+            return isMemory8Bit() ? 4 : 5;
+
+        case 0x0D: // ORA Absolute
+            op_ORA(getAddress_Absolute());
+            return isMemory8Bit() ? 4 : 5;
+
+        case 0x1D: // ORA Absolute,X
+            op_ORA(getAddress_AbsoluteX());
+            return isMemory8Bit() ? 4 : 5;
+
+        case 0x19: // ORA Absolute,Y
+            op_ORA(getAddress_AbsoluteY());
+            return isMemory8Bit() ? 4 : 5;
+
+        case 0x01: // ORA (Direct Page,X)
+            op_ORA(getAddress_IndirectX());
+            return isMemory8Bit() ? 6 : 7;
+
+        case 0x11: // ORA (Direct Page),Y
+            op_ORA(getAddress_IndirectY());
+            return isMemory8Bit() ? 5 : 6;
+
+        // EOR - Bitwise Exclusive OR
+        case 0x49: // EOR Immediate
+            if (isMemory8Bit()) {
+                op_EOR(getAddress_Immediate());
+                return 2;
+            } else {
+                op_EOR(getAddress_Immediate());
+                return 3;
+            }
+
+        case 0x45: // EOR Direct Page
+            op_EOR(getAddress_Direct());
+            return isMemory8Bit() ? 3 : 4;
+
+        case 0x55: // EOR Direct Page,X
+            op_EOR(getAddress_DirectX());
+            return isMemory8Bit() ? 4 : 5;
+
+        case 0x4D: // EOR Absolute
+            op_EOR(getAddress_Absolute());
+            return isMemory8Bit() ? 4 : 5;
+
+        case 0x5D: // EOR Absolute,X
+            op_EOR(getAddress_AbsoluteX());
+            return isMemory8Bit() ? 4 : 5;
+
+        case 0x59: // EOR Absolute,Y
+            op_EOR(getAddress_AbsoluteY());
+            return isMemory8Bit() ? 4 : 5;
+
+        case 0x41: // EOR (Direct Page,X)
+            op_EOR(getAddress_IndirectX());
+            return isMemory8Bit() ? 6 : 7;
+
+        case 0x51: // EOR (Direct Page),Y
+            op_EOR(getAddress_IndirectY());
+            return isMemory8Bit() ? 5 : 6;
+        // CMP - Compare Accumulator
+        case 0xC9: // CMP Immediate
+            if (isMemory8Bit()) {
+                op_CMP(getAddress_Immediate());
+                return 2;
+            } else {
+                op_CMP(getAddress_Immediate());
+                return 3;
+            }
+        case 0xC5: // CMP Direct Page
+            op_CMP(getAddress_Direct());
+            return isMemory8Bit() ? 3 : 4;
+        case 0xD5: // CMP Direct Page,X
+            op_CMP(getAddress_DirectX());
+            return isMemory8Bit() ? 4 : 5;
+        case 0xCD: // CMP Absolute
+            op_CMP(getAddress_Absolute());
+            return isMemory8Bit() ? 4 : 5;
+        case 0xDD: // CMP Absolute,X
+            op_CMP(getAddress_AbsoluteX());
+            return isMemory8Bit() ? 4 : 5;
+        case 0xD9: // CMP Absolute,Y
+            op_CMP(getAddress_AbsoluteY());
+            return isMemory8Bit() ? 4 : 5;
+        case 0xC1: // CMP (Direct Page,X)
+            op_CMP(getAddress_IndirectX());
+            return isMemory8Bit() ? 6 : 7;
+        case 0xD1: // CMP (Direct Page),Y
+            op_CMP(getAddress_IndirectY());
+            return isMemory8Bit() ? 5 : 6;
+        // CPX - Compare X Register
+        case 0xE0: // CPX Immediate
+            if (isIndex8Bit()) {
+                op_CPX(getAddress_Immediate());
+                return 2;
+            } else {
+                op_CPX(getAddress_Immediate());
+                return 3;
+            }
+        case 0xE4: // CPX Direct Page
+            op_CPX(getAddress_Direct());
+            return isIndex8Bit() ? 3 : 4;
+        case 0xEC: // CPX Absolute
+            op_CPX(getAddress_Absolute());
+            return isIndex8Bit() ? 4 : 5;
+
+        // CPY - Compare Y Register
+        case 0xC0: // CPY Immediate
+            if (isIndex8Bit()) {
+                op_CPY(getAddress_Immediate());
+                return 2;
+            } else {
+                op_CPY(getAddress_Immediate());
+                return 3;
+            }
+        case 0xC4: // CPY Direct Page
+            op_CPY(getAddress_Direct());
+            return isIndex8Bit() ? 3 : 4;
+        case 0xCC: // CPY Absolute
+            op_CPY(getAddress_Absolute());
+            return isIndex8Bit() ? 4 : 5;
+        case 0xF0: // BEQ - Branch if Equal
+            op_BEQ();
+            return 2;  // Simplified: 2 cycles (add +1 if taken in real implementation)
+
+        case 0xD0: // BNE - Branch if Not Equal
+            op_BNE();
+            return 2;
+
+        case 0xB0: // BCS - Branch if Carry Set
+            op_BCS();
+            return 2;
+
+        case 0x90: // BCC - Branch if Carry Clear
+            op_BCC();
+            return 2;
+
+        case 0x30: // BMI - Branch if Minus
+            op_BMI();
+            return 2;
+
+        case 0x10: // BPL - Branch if Plus
+            op_BPL();
+            return 2;
+
+        case 0x70: // BVS - Branch if Overflow Set
+            op_BVS();
+            return 2;
+
+        case 0x50: // BVC - Branch if Overflow Clear
+            op_BVC();
+            return 2;
         default:
             // Unknown opcode - for now just NOP
             return 2;
@@ -739,4 +999,279 @@ void CPU65c816::op_SBC(uint32 address) {
             updateNZ16(result16);
         }
     }
+}
+
+void CPU65c816::op_INX() {
+    // Increment X
+    if (isIndex8Bit()) {
+        registers.X = (registers.X + 1) & 0xFF;
+        updateNZ8(registers.X & 0xFF);
+    } else {
+        registers.X = (registers.X + 1) & 0xFFFF;
+        updateNZ16(registers.X);
+    }
+}
+
+void CPU65c816::op_INY() {
+    // Increment Y
+    if (isIndex8Bit()) {
+        registers.Y = (registers.Y + 1) & 0xFF;
+        updateNZ8(registers.Y & 0xFF);
+    } else {
+        registers.Y = (registers.Y + 1) & 0xFFFF;
+        updateNZ16(registers.Y);
+    }
+}
+
+void CPU65c816::op_DEX() {
+    // Decrement X
+    if (isIndex8Bit()) {
+        registers.X = (registers.X - 1) & 0xFF;
+        updateNZ8(registers.X & 0xFF);
+    } else {
+        registers.X = (registers.X - 1) & 0xFFFF;
+        updateNZ16(registers.X);
+    }
+}
+
+void CPU65c816::op_DEY() {
+    // Decrement Y
+    if (isIndex8Bit()) {
+        registers.Y = (registers.Y - 1) & 0xFF;
+        updateNZ8(registers.Y & 0xFF);
+    } else {
+        registers.Y = (registers.Y - 1) & 0xFFFF;
+        updateNZ16(registers.Y);
+    }
+}
+
+void CPU65c816::op_INC_A() {
+    // Increment Accumulator
+    if (isMemory8Bit()) {
+        uint8 value = (registers.A & 0xFF) + 1;
+        registers.A = (registers.A & 0xFF00) | value;
+        updateNZ8(value);
+    } else {
+        registers.A = (registers.A + 1) & 0xFFFF;
+        updateNZ16(registers.A);
+    }
+}
+
+void CPU65c816::op_DEC_A() {
+    // Decrement Accumulator
+    if (isMemory8Bit()) {
+        uint8 value = (registers.A & 0xFF) - 1;
+        registers.A = (registers.A & 0xFF00) | value;
+        updateNZ8(value);
+    } else {
+        registers.A = (registers.A - 1) & 0xFFFF;
+        updateNZ16(registers.A);
+    }
+}
+
+void CPU65c816::op_INC(uint32 address) {
+    // Increment Memory
+    if (isMemory8Bit()) {
+        uint8 value = read8(address);
+        value = (value + 1) & 0xFF;
+        write8(address, value);
+        updateNZ8(value);
+    } else {
+        uint16 value = read16(address);
+        value = (value + 1) & 0xFFFF;
+        write16(address, value);
+        updateNZ16(value);
+    }
+}
+
+void CPU65c816::op_DEC(uint32 address) {
+    // Decrement Memory
+    if (isMemory8Bit()) {
+        uint8 value = read8(address);
+        value = (value - 1) & 0xFF;
+        write8(address, value);
+        updateNZ8(value);
+    } else {
+        uint16 value = read16(address);
+        value = (value - 1) & 0xFFFF;
+        write16(address, value);
+        updateNZ16(value);
+    }
+}
+
+void CPU65c816::op_AND(uint32 address) {
+    // Bitwise AND with Accumulator
+    if (isMemory8Bit()) {
+        uint8 operand = read8(address);
+        uint8 result = (registers.A & 0xFF) & operand;
+        registers.A = (registers.A & 0xFF00) | result;
+        updateNZ8(result);
+    } else {
+        uint16 operand = read16(address);
+        registers.A = registers.A & operand;
+        updateNZ16(registers.A);
+    }
+}
+
+void CPU65c816::op_ORA(uint32 address) {
+    // Bitwise OR with Accumulator
+    if (isMemory8Bit()) {
+        uint8 operand = read8(address);
+        uint8 result = (registers.A & 0xFF) | operand;
+        registers.A = (registers.A & 0xFF00) | result;
+        updateNZ8(result);
+    } else {
+        uint16 operand = read16(address);
+        registers.A = registers.A | operand;
+        updateNZ16(registers.A);
+    }
+}
+
+void CPU65c816::op_EOR(uint32 address) {
+    // Bitwise Exclusive OR with Accumulator
+    if (isMemory8Bit()) {
+        uint8 operand = read8(address);
+        uint8 result = (registers.A & 0xFF) ^ operand;
+        registers.A = (registers.A & 0xFF00) | result;
+        updateNZ8(result);
+    } else {
+        uint16 operand = read16(address);
+        registers.A = registers.A ^ operand;
+        updateNZ16(registers.A);
+    }
+}
+
+void CPU65c816::op_CMP(uint32 address) {
+    // Compare Accumulator
+    // Performs: A - operand (but doesn't store result)
+    // Updates: N, Z, C flags
+    
+    if (isMemory8Bit()) {
+        uint8 operand = read8(address);
+        uint8 a = registers.A & 0xFF;
+        
+        // Perform subtraction (but don't store)
+        uint16 result = a - operand;
+        
+        // Set flags
+        setFlag(FLAG_CARRY, result < 0x100);     // C=1 if no borrow (a >= operand)
+        setFlag(FLAG_ZERO, (result & 0xFF) == 0); // Z=1 if equal
+        setFlag(FLAG_NEGATIVE, (result & 0x80) != 0); // N=1 if bit 7 set
+    } else {
+        uint16 operand = read16(address);
+        uint16 a = registers.A;
+        
+        // Perform subtraction (but don't store)
+        uint32 result = a - operand;
+        
+        // Set flags
+        setFlag(FLAG_CARRY, result < 0x10000);      // C=1 if no borrow
+        setFlag(FLAG_ZERO, (result & 0xFFFF) == 0); // Z=1 if equal
+        setFlag(FLAG_NEGATIVE, (result & 0x8000) != 0); // N=1 if bit 15 set
+    }
+}
+
+void CPU65c816::op_CPX(uint32 address) {
+    // Compare X Register
+    // Performs: X - operand (but doesn't store result)
+    
+    if (isIndex8Bit()) {
+        uint8 operand = read8(address);
+        uint8 x = registers.X & 0xFF;
+        
+        uint16 result = x - operand;
+        
+        setFlag(FLAG_CARRY, result < 0x100);
+        setFlag(FLAG_ZERO, (result & 0xFF) == 0);
+        setFlag(FLAG_NEGATIVE, (result & 0x80) != 0);
+    } else {
+        uint16 operand = read16(address);
+        uint16 x = registers.X;
+        
+        uint32 result = x - operand;
+        
+        setFlag(FLAG_CARRY, result < 0x10000);
+        setFlag(FLAG_ZERO, (result & 0xFFFF) == 0);
+        setFlag(FLAG_NEGATIVE, (result & 0x8000) != 0);
+    }
+}
+
+void CPU65c816::op_CPY(uint32 address) {
+    // Compare Y Register
+    // Performs: Y - operand (but doesn't store result)
+    
+    if (isIndex8Bit()) {
+        uint8 operand = read8(address);
+        uint8 y = registers.Y & 0xFF;
+        
+        uint16 result = y - operand;
+        
+        setFlag(FLAG_CARRY, result < 0x100);
+        setFlag(FLAG_ZERO, (result & 0xFF) == 0);
+        setFlag(FLAG_NEGATIVE, (result & 0x80) != 0);
+    } else {
+        uint16 operand = read16(address);
+        uint16 y = registers.Y;
+        
+        uint32 result = y - operand;
+        
+        setFlag(FLAG_CARRY, result < 0x10000);
+        setFlag(FLAG_ZERO, (result & 0xFFFF) == 0);
+        setFlag(FLAG_NEGATIVE, (result & 0x8000) != 0);
+    }
+}
+
+void CPU65c816::branch(bool condition) {
+    // Read the signed offset
+    int8 offset = static_cast<int8>(fetchByte());
+    
+    if (condition) {
+        // Branch taken - add offset to PC
+        // Note: PC already points to next instruction after fetchByte()
+        registers.PC = static_cast<uint16>(registers.PC + offset);
+        
+        // TODO: Add cycle penalties for page crossing if needed
+        // For now, we'll just use base cycle counts in decodeAndExecute
+    }
+    // If condition is false, PC already points to next instruction, so do nothing
+}
+
+void CPU65c816::op_BEQ() {
+    // Branch if Equal (Z = 1)
+    branch(getFlag(FLAG_ZERO));
+}
+
+void CPU65c816::op_BNE() {
+    // Branch if Not Equal (Z = 0)
+    branch(!getFlag(FLAG_ZERO));
+}
+
+void CPU65c816::op_BCS() {
+    // Branch if Carry Set (C = 1)
+    branch(getFlag(FLAG_CARRY));
+}
+
+void CPU65c816::op_BCC() {
+    // Branch if Carry Clear (C = 0)
+    branch(!getFlag(FLAG_CARRY));
+}
+
+void CPU65c816::op_BMI() {
+    // Branch if Minus (N = 1)
+    branch(getFlag(FLAG_NEGATIVE));
+}
+
+void CPU65c816::op_BPL() {
+    // Branch if Plus (N = 0)
+    branch(!getFlag(FLAG_NEGATIVE));
+}
+
+void CPU65c816::op_BVS() {
+    // Branch if Overflow Set (V = 1)
+    branch(getFlag(FLAG_OVERFLOW));
+}
+
+void CPU65c816::op_BVC() {
+    // Branch if Overflow Clear (V = 0)
+    branch(!getFlag(FLAG_OVERFLOW));
 }

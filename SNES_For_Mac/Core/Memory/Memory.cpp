@@ -160,3 +160,16 @@ void Memory::writeMapped(uint32 address, uint8 value) {
             break;
     }
 }
+
+uint16 Memory::read16(uint32 address) {
+    // Little-endian read: low byte first, then high byte
+    uint8 lo = read(address);
+    uint8 hi = read(address + 1);
+    return (static_cast<uint16>(hi) << 8) | lo;
+}
+
+void Memory::write16(uint32 address, uint16 value) {
+    // Little-endian write: low byte first, then high byte
+    write(address, value & 0xFF);           // Low byte
+    write(address + 1, (value >> 8) & 0xFF); // High byte
+}

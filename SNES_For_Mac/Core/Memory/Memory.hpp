@@ -21,6 +21,8 @@ public:
     uint8 read(uint32 address);
     void write(uint32 address, uint8 value);
     
+    uint16 read16(uint32 address);
+    void write16(uint32 address, uint16 value);
     // Load ROM data
     bool loadROM(const std::vector<uint8>& romData);
     

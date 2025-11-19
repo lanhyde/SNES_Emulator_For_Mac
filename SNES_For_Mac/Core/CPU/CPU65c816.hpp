@@ -146,5 +146,37 @@ private:
     // Helper for overflow calculation
     bool checkOverflow8(uint8 a, uint b, uint8 result);
     bool checkOverflow16(uint16 a, uint16 b, uint result);
+    // Register increment/decrement
+    void op_INX();
+    void op_INY();
+    void op_DEX();
+    void op_DEY();
+
+    // Memory increment/decrement (takes address)
+    void op_INC(uint32 address);
+    void op_DEC(uint32 address);
+
+    // Accumulator versions (no address needed)
+    void op_INC_A();
+    void op_DEC_A();
+    // Logic operations
+    void op_AND(uint32 address);
+    void op_ORA(uint32 address);
+    void op_EOR(uint32 address);
+    // Compare operations
+    void op_CMP(uint32 address);
+    void op_CPX(uint32 address);
+    void op_CPY(uint32 address);
+    // Helper for all branches
+    void branch(bool condition);
+    // Individual branch instructions
+    void op_BEQ();  // Branch if Equal (Z = 1)
+    void op_BNE();  // Branch if Not Equal (Z = 0)
+    void op_BCS();  // Branch if Carry Set (C = 1)
+    void op_BCC();  // Branch if Carry Clear (C = 0)
+    void op_BMI();  // Branch if Minus (N = 1)
+    void op_BPL();  // Branch if Plus (N = 0)
+    void op_BVS();  // Branch if Overflow Set (V = 1)
+    void op_BVC();  // Branch if Overflow Clear (V = 0)
 };
 #endif
