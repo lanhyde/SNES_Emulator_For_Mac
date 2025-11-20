@@ -178,5 +178,45 @@ private:
     void op_BPL();  // Branch if Plus (N = 0)
     void op_BVS();  // Branch if Overflow Set (V = 1)
     void op_BVC();  // Branch if Overflow Clear (V = 0)
+    // Jump instructions
+    void op_JMP(uint32 address);
+    void op_JSR(uint32 address);
+    void op_RTS();
+    void op_RTI();
+    // Bit manipulation and shift/rotate operations
+    void op_BIT(uint32 address);        // Bit test
+    void op_ASL(uint32 address);        // Arithmetic Shift Left (memory)
+    void op_ASL_A();                    // Arithmetic Shift Left (accumulator)
+    void op_LSR(uint32 address);        // Logical Shift Right (memory)
+    void op_LSR_A();                    // Logical Shift Right (accumulator)
+    void op_ROL(uint32 address);        // Rotate Left (memory)
+    void op_ROL_A();                    // Rotate Left (accumulator)
+    void op_ROR(uint32 address);        // Rotate Right (memorhy)
+    void op_ROR_A();                    // Rotate Right (accumulator)
+    // Flag manipulation instructions
+    void op_CLC();                      // Clear Carry
+    void op_SEC();                      // Set Carry
+    void op_CLI();                      // Clear Interrupt Disable
+    void op_SEI();                      // Set Interrupt Disable
+    void op_CLV();                      // Clear Overflow
+    void op_CLD();                      // Clear Decimal
+    void op_SED();                      // Set Decimal
+    void op_REP();                      // Reset Processor Status Bits
+    void op_SEP();                      // Set Processor Status Bits
+    void op_XCE();                      // Exchange Carry and Emulation
+    // Test and Set/Reset Bit operations
+    void op_TSB(uint32 address);  // Test and Set Bits
+    void op_TRB(uint32 address);  // Test and Reset Bits
+    
+    // Block move instructions
+    void op_MVP();  // Block Move Previous (decrement)
+    void op_MVN();  // Block Move Next (increment)
+    
+    // Interrupt and system instructions
+    void op_BRK();  // Break (software interrupt)
+    void op_COP();  // Coprocessor instruction
+    void op_WDM();  // Reserved for future expansion
+    void op_STP();  // Stop processor
+    void op_WAI();  // Wait for interrupt
 };
 #endif

@@ -79,6 +79,34 @@ public:
         testLoopWithBranch();
         testSignedOffsetConversion();
         
+        // Bit manipulation and shift/rotate tests
+        testBIT_Operation();
+        testASL_Operation();
+        testLSR_Operation();
+        testROL_Operation();
+        testROR_Operation();
+        testShiftRotate16Bit();
+        
+        // Flag manipulation tests
+        testFlagSetClear();
+        testREP_SEP_Operations();
+        testXCE_Operation();
+        
+        // TSB/TRB operations
+        testTSB_TRB_Operations();
+        // Jump and subroutine
+        testJumpSubroutine();
+        // Interrupts
+        testInterrupts();
+        // Block move
+        testBlockMove();
+        
+        testCounterLoop();
+        testBitPattern();
+        testFindMaximum();
+        testArrayCopy();
+        testMultiplication();
+        
         cout << endl;
         cout << COLOR_CYAN << "=== Test Summary ===" << COLOR_RESET << endl;
         cout << COLOR_GREEN << "Passed: " << testsPassed << COLOR_RESET << endl;
@@ -1795,6 +1823,1371 @@ private:
         }
     }
 
+    void testSumProgram() {
+        printTestHeader("Test Program: Sum 1-10");
+        
+        cpu.reset();
+        vector<uint8> rom(0x10000, 0xEA);
+        memory.loadROM(rom);
+        
+        int pc = 0x8000;
+        rom[pc++] = 0x18;           // CLC
+        rom[pc++] = 0xA9;           // LDA #$00
+        rom[pc++] = 0x00;
+        rom[pc++] = 0xA2;           // LDX #$01
+        // loop:
+        int loop_start = pc;
+        rom[pc++] = 0x8A;           // TXA (transfer X to A temporarily)
+        rom[pc++] = 0x18;           // CLC
+        rom[pc++] = 0x69;           // ADC #$01 (we'll use immediate mode)
+        rom[pc++] = 0x01;           // Add 1 each time
+        rom[pc++] = 0XE8;           // INX
+        rom[pc++] = 0xE0;           // CPX #$0B
+        rom[pc++] = 0x0B;
+        rom[pc++] = 0xD0;           // BNE loop
+        rom[pc++] = static_cast<uint8>(loop_start - pc);    // calculate offset
+        rom[pc++] = 0x8D;           // STA $1000
+        rom[pc++] = 0x00;
+        rom[pc++] = 0x10;
+        
+        memory.loadROM(rom);
+        cpu.registers.PC = 0x8000;
+        cpu.setFlag(FLAG_MEMORY_WIDTH, true);       // 8-bit mode
+        cpu.setFlag(FLAG_INDEX_WIDTH, true);
+        
+        // Execute program (max 200 instructions to prevent infinite loop)
+        for (int i = 0; i < 200; ++i) {
+            cpu.executeInstruction();
+            if (cpu.registers.PC == pc) break;  // reach end
+        }
+        
+        // verify result
+        assert_equal("Sum 1-10 result", 0x37, memory.read(0x1000));
+        assert_equal("Final A value", 0x37, cpu.registers.A & 0xFF);
+        assert_equal("Final X value", 0x0B, cpu.registers.X & 0xFF);
+    }
+    
+    void testCounterLoop() {
+        printTestHeader("Test Program: Counter Loop");
+        
+        cpu.reset();
+        std::vector<uint8> rom(0x10000, 0xEA);
+        
+        int pc = 0x8000;
+        rom[pc++] = 0xA2;        // LDX #$00
+        rom[pc++] = 0x00;
+        // loop:
+        int loop_start = pc;
+        rom[pc++] = 0xE8;        // INX
+        rom[pc++] = 0xE0;        // CPX #$0A
+        rom[pc++] = 0x0A;
+        rom[pc++] = 0xD0;        // BNE loop
+        int8 offset = loop_start - (pc + 1);
+        rom[pc++] = static_cast<uint8>(offset); // Offset back to loop
+        rom[pc++] = 0x8E;        // STX $1000
+        rom[pc++] = 0x00;
+        rom[pc++] = 0x10;
+        
+        memory.loadROM(rom);
+        cpu.registers.PC = 0x8000;
+        cpu.setFlag(FLAG_INDEX_WIDTH, true);  // 8-bit mode
+        
+        // Execute program
+        for (int i = 0; i < 100; i++) {
+            cpu.executeInstruction();
+            if (cpu.registers.PC >= 0x8009) break;  // Past STX
+        }
+        
+        assert_equal("Counter final value", 0x0A, memory.read(0x1000));
+        assert_equal("X register", 0x0A, cpu.registers.X & 0xFF);
+        
+        std::cout << "  Counter executed successfully!" << std::endl;
+    }
+    
+    void testCounterLoopDebug() {
+        printTestHeader("Test Program: Counter Loop (Debug)");
+        
+        cpu.reset();
+        std::vector<uint8> rom(0x10000, 0xEA);
+        
+        int pc = 0x8000;
+        rom[pc++] = 0xA2;        // LDX #$00      at 0x8000
+        rom[pc++] = 0x00;        //               at 0x8001
+        // loop:                                   0x8002
+        int loop_start = pc;
+        rom[pc++] = 0xE8;        // INX           at 0x8002
+        rom[pc++] = 0xE0;        // CPX #$0A      at 0x8003
+        rom[pc++] = 0x0A;        //               at 0x8004
+        rom[pc++] = 0xD0;        // BNE loop      at 0x8005
+        int8 offset = loop_start - (pc + 1);
+        rom[pc++] = static_cast<uint8>(offset); // offset at 0x8006
+        rom[pc++] = 0x8E;        // STX $1000     at 0x8007
+        rom[pc++] = 0x00;        //               at 0x8008
+        rom[pc++] = 0x10;        //               at 0x8009
+        
+        memory.loadROM(rom);
+        cpu.registers.PC = 0x8000;
+        cpu.setFlag(FLAG_INDEX_WIDTH, true);  // 8-bit mode
+        
+        std::cout << "  Program layout:" << std::endl;
+        std::cout << "    LDX #$00 at 0x8000-0x8001" << std::endl;
+        std::cout << "    loop at 0x8002" << std::endl;
+        std::cout << "    INX at 0x8002" << std::endl;
+        std::cout << "    CPX #$0A at 0x8003-0x8004" << std::endl;
+        std::cout << "    BNE at 0x8005-0x8006" << std::endl;
+        std::cout << "    Branch offset: " << std::hex << (int)(uint8)(loop_start - pc) << std::dec << std::endl;
+        std::cout << "    Target: 0x" << std::hex << loop_start << std::dec << std::endl;
+        std::cout << "    STX $1000 at 0x8007-0x8009" << std::endl;
+        std::cout << std::endl;
+        
+        // Execute with detailed trace
+        int instructions = 0;
+        while (instructions < 100) {
+            uint16 pc_before = cpu.registers.PC;
+            uint8 opcode = memory.read((cpu.registers.PBR << 16) | cpu.registers.PC);
+            uint8 x_before = cpu.registers.X & 0xFF;
+            bool z_before = cpu.getFlag(FLAG_ZERO);
+            
+            cpu.executeInstruction();
+            instructions++;
+            
+            uint8 x_after = cpu.registers.X & 0xFF;
+            uint16 pc_after = cpu.registers.PC;
+            bool z_after = cpu.getFlag(FLAG_ZERO);
+            
+            // Print first 20 instructions
+            if (instructions <= 20) {
+                std::cout << "  [" << instructions << "] PC=0x" << std::hex << pc_before
+                          << " opcode=0x" << (int)opcode << std::dec
+                          << " X=" << (int)x_before << "->" << (int)x_after
+                          << " Z=" << z_before << "->" << z_after
+                          << " -> PC=0x" << std::hex << pc_after << std::dec << std::endl;
+            }
+            
+            // Stop if we've passed the STX
+            if (cpu.registers.PC >= 0x800A) {
+                std::cout << "  Program completed at PC=0x" << std::hex << cpu.registers.PC << std::dec << std::endl;
+                break;
+            }
+            
+            // Safety check for infinite loop
+            if (instructions >= 100) {
+                std::cout << "  WARNING: Hit 100 instruction limit!" << std::endl;
+                break;
+            }
+        }
+        
+        std::cout << "  Total instructions: " << instructions << std::endl;
+        std::cout << "  Final X: " << (int)(cpu.registers.X & 0xFF) << std::endl;
+        std::cout << "  Final PC: 0x" << std::hex << cpu.registers.PC << std::dec << std::endl;
+        std::cout << "  Memory[0x1000]: 0x" << std::hex << (int)memory.read(0x1000) << std::dec << std::endl;
+        
+        assert_equal("Counter final value", 0x0A, memory.read(0x1000));
+        assert_equal("X register", 0x0A, cpu.registers.X & 0xFF);
+    }
+    
+    void testBitPattern() {
+        printTestHeader("Test Program: Bit Pattern");
+        
+        cpu.reset();
+        memory.reset();
+        std::vector<uint8> rom(0x10000, 0xEA);
+        
+        int pc = 0x8000;
+        rom[pc++] = 0xA9;        // LDA #$01
+        rom[pc++] = 0x01;
+        rom[pc++] = 0x8D;        // STA $1000
+        rom[pc++] = 0x00;
+        rom[pc++] = 0x10;
+        
+        rom[pc++] = 0x09;        // ORA #$02
+        rom[pc++] = 0x02;
+        rom[pc++] = 0x8D;        // STA $1001
+        rom[pc++] = 0x01;
+        rom[pc++] = 0x10;
+        
+        rom[pc++] = 0x09;        // ORA #$04
+        rom[pc++] = 0x04;
+        rom[pc++] = 0x8D;        // STA $1002
+        rom[pc++] = 0x02;
+        rom[pc++] = 0x10;
+        
+        rom[pc++] = 0x09;        // ORA #$08
+        rom[pc++] = 0x08;
+        rom[pc++] = 0x8D;        // STA $1003
+        rom[pc++] = 0x03;
+        rom[pc++] = 0x10;
+        
+        memory.loadROM(rom);
+        cpu.registers.PC = 0x8000;
+        cpu.registers.DBR = 0x00;
+        cpu.setFlag(FLAG_MEMORY_WIDTH, true);
+        
+        // Execute program
+        for (int i = 0; i < 50; i++) {
+            cpu.executeInstruction();
+        }
+        
+        assert_equal("Bit pattern step 1", 0x01, memory.read(0x1000));
+        assert_equal("Bit pattern step 2", 0x03, memory.read(0x1001));
+        assert_equal("Bit pattern step 3", 0x07, memory.read(0x1002));
+        assert_equal("Bit pattern step 4", 0x0F, memory.read(0x1003));
+        
+        std::cout << "  Bit pattern created successfully!" << std::endl;
+    }
+    
+    void testFindMaximum() {
+        printTestHeader("Test Program: Find Maximum");
+        
+        cpu.reset();
+        std::vector<uint8> rom(0x10000, 0xEA);
+        memory.reset();
+                
+        int pc = 0x8000;
+        rom[pc++] = 0xAD;        // LDA $0100
+        rom[pc++] = 0x00;
+        rom[pc++] = 0x01;
+        rom[pc++] = 0xA2;        // LDX #$01
+        rom[pc++] = 0x01;
+        // loop:
+        int loop_start = pc;
+        rom[pc++] = 0xDD;        // CMP $0100,X
+        rom[pc++] = 0x00;
+        rom[pc++] = 0x01;
+        rom[pc++] = 0xB0;        // BCS skip (branch if A >= memory)
+        rom[pc++] = 0x03;        // Skip 3 bytes (past the LDA)
+        rom[pc++] = 0xBD;        // LDA $0100,X
+        rom[pc++] = 0x00;
+        rom[pc++] = 0x01;
+        // skip:
+        rom[pc++] = 0xE8;        // INX
+        rom[pc++] = 0xE0;        // CPX #$04
+        rom[pc++] = 0x04;
+        rom[pc++] = 0xD0;        // BNE loop
+        int8 offset = loop_start - (pc + 1);
+        rom[pc++] = static_cast<uint8>(offset); // Offset back
+        rom[pc++] = 0x8D;        // STA $1000
+        rom[pc++] = 0x00;
+        rom[pc++] = 0x10;
+        
+        memory.loadROM(rom);
+        
+        // Setup array data
+        memory.write(0x0100, 0x42);
+        memory.write(0x0101, 0x87);
+        memory.write(0x0102, 0x23);
+        memory.write(0x0103, 0x91);  // Maximum value
+        
+        cpu.registers.PC = 0x8000;
+        cpu.registers.DBR = 0x00;
+        cpu.setFlag(FLAG_MEMORY_WIDTH, true);
+        cpu.setFlag(FLAG_INDEX_WIDTH, true);
+        
+        // Execute program
+        for (int i = 0; i < 200; i++) {
+            cpu.executeInstruction();
+            if (cpu.registers.PC >= 0x8015) break;
+        }
+        
+        assert_equal("Maximum value found", 0x91, memory.read(0x1000));
+        assert_equal("A contains maximum", 0x91, cpu.registers.A & 0xFF);
+        
+        std::cout << "  Maximum value found successfully!" << std::endl;
+    }
+    
+    void testFindMaximumDebug() {
+        printTestHeader("Test Program: Find Maximum (Debug)");
+        
+        cpu.reset();
+        std::vector<uint8> rom(0x10000, 0xEA);
+        memory.reset();
+        
+        int pc = 0x8000;
+        rom[pc++] = 0xAD;        // LDA $0100
+        rom[pc++] = 0x00;
+        rom[pc++] = 0x01;
+        rom[pc++] = 0xA2;        // LDX #$01
+        rom[pc++] = 0x01;
+        // loop:
+        int loop_start = pc;
+        rom[pc++] = 0xDD;        // CMP $0100,X
+        rom[pc++] = 0x00;
+        rom[pc++] = 0x01;
+        rom[pc++] = 0xB0;        // BCS skip (branch if A >= memory)
+        rom[pc++] = 0x03;        // Skip 4 bytes (past the LDA)
+        rom[pc++] = 0xBD;        // LDA $0100,X
+        rom[pc++] = 0x00;
+        rom[pc++] = 0x01;
+        // skip:
+        rom[pc++] = 0xE8;        // INX
+        rom[pc++] = 0xE0;        // CPX #$04
+        rom[pc++] = 0x04;
+        rom[pc++] = 0xD0;        // BNE loop
+        int8 offset = loop_start - (pc + 1);
+        rom[pc++] = static_cast<uint8>(offset); // Offset back
+        rom[pc++] = 0x8D;        // STA $1000
+        rom[pc++] = 0x00;
+        rom[pc++] = 0x10;
+        
+        memory.loadROM(rom);
+        
+        // Setup array data
+        memory.write(0x0100, 0x42);
+        memory.write(0x0101, 0x87);
+        memory.write(0x0102, 0x23);
+        memory.write(0x0103, 0x91);  // Maximum value
+        
+        cpu.registers.PC = 0x8000;
+        cpu.registers.DBR = 0x00;
+        cpu.setFlag(FLAG_MEMORY_WIDTH, true);
+        cpu.setFlag(FLAG_INDEX_WIDTH, true);
+        
+        std::cout << "  Array data:" << std::endl;
+        std::cout << "    Memory[0x0100] = 0x" << std::hex << (int)memory.read(0x0100) << std::dec << std::endl;
+        std::cout << "    Memory[0x0101] = 0x" << std::hex << (int)memory.read(0x0101) << std::dec << std::endl;
+        std::cout << "    Memory[0x0102] = 0x" << std::hex << (int)memory.read(0x0102) << std::dec << std::endl;
+        std::cout << "    Memory[0x0103] = 0x" << std::hex << (int)memory.read(0x0103) << std::dec << " (maximum)" << std::endl;
+        std::cout << std::endl;
+        
+        // Execute with trace
+        int instructions = 0;
+        while (instructions < 100 && cpu.registers.PC < 0x8015) {
+            uint16 pc_before = cpu.registers.PC;
+            uint8 opcode = memory.read((cpu.registers.PBR << 16) | cpu.registers.PC);
+            uint8 x_before = cpu.registers.X & 0xFF;
+            uint8 a_before = cpu.registers.A & 0xFF;
+            bool c_before = cpu.getFlag(FLAG_CARRY);
+            
+            cpu.executeInstruction();
+            instructions++;
+            
+            uint8 x_after = cpu.registers.X & 0xFF;
+            uint8 a_after = cpu.registers.A & 0xFF;
+            bool c_after = cpu.getFlag(FLAG_CARRY);
+            uint16 pc_after = cpu.registers.PC;
+            
+            if (instructions <= 25) {
+                std::cout << "  [" << instructions << "] PC=0x" << std::hex << pc_before
+                          << " op=0x" << (int)opcode << std::dec
+                          << " X=" << (int)x_before << "->" << (int)x_after
+                          << " A=0x" << std::hex << (int)a_before << "->0x" << (int)a_after << std::dec
+                          << " C=" << c_before << "->" << c_after
+                          << " -> PC=0x" << std::hex << pc_after << std::dec << std::endl;
+            }
+        }
+        
+        std::cout << std::endl;
+        std::cout << "  Final state:" << std::endl;
+        std::cout << "    A = 0x" << std::hex << (int)(cpu.registers.A & 0xFF) << std::dec << " (expected 0x91)" << std::endl;
+        std::cout << "    Memory[0x1000] = 0x" << std::hex << (int)memory.read(0x1000) << std::dec << " (expected 0x91)" << std::endl;
+    }
+    
+    void testArrayCopy() {
+        printTestHeader("Test Program: Array Copy");
+        
+        cpu.reset();
+        std::vector<uint8> rom(0x10000, 0xEA);
+        memory.reset();
+        
+        int pc = 0x8000;
+        rom[pc++] = 0xA2;        // LDX #$00
+        rom[pc++] = 0x00;
+        // loop:
+        int loop_start = pc;
+        rom[pc++] = 0xBD;        // LDA $0100,X  ← Source at 0x0100
+        rom[pc++] = 0x00;
+        rom[pc++] = 0x01;        // ✓ Correct
+        rom[pc++] = 0x9D;        // STA $0200,X  ← Dest should be 0x0200
+        rom[pc++] = 0x00;
+        rom[pc++] = 0x02;        // ← CHANGE THIS from 0x30 to 0x02!
+        rom[pc++] = 0xE8;        // INX
+        rom[pc++] = 0xE0;        // CPX #$04
+        rom[pc++] = 0x04;
+        rom[pc++] = 0xD0;        // BNE loop
+        uint8 offset = loop_start - (pc + 1);
+        rom[pc++] = static_cast<uint8>(offset);
+        
+        memory.loadROM(rom);
+        
+        // Write test data to 0x0100 (source)
+        memory.write(0x0100, 0xAA);
+        memory.write(0x0101, 0xBB);
+        memory.write(0x0102, 0xCC);
+        memory.write(0x0103, 0xDD);
+        
+        cpu.registers.PC = 0x8000;
+        cpu.registers.DBR = 0x00;
+        cpu.setFlag(FLAG_MEMORY_WIDTH, true);
+        cpu.setFlag(FLAG_INDEX_WIDTH, true);
+        
+        // Execute program
+        for (int i = 0; i < 100; i++) {
+            cpu.executeInstruction();
+            if (cpu.registers.PC >= 0x800D) break;
+        }
+        
+        // Verify copy
+        assert_equal("Array copy byte 0", 0xAA, memory.read(0x0100));
+        assert_equal("Array copy byte 1", 0xBB, memory.read(0x0101));
+        assert_equal("Array copy byte 2", 0xCC, memory.read(0x0102));
+        assert_equal("Array copy byte 3", 0xDD, memory.read(0x0103));
+        
+        std::cout << "  Array copied successfully!" << std::endl;
+        std::cout << "  Final PC: 0x" << std::hex << cpu.registers.PC << std::dec << std::endl;
+        std::cout << "  Final X: " << (int)(cpu.registers.X & 0xFF) << std::endl;
+        std::cout << "  Source[0]: 0x" << std::hex << (int)memory.read(0x2000) << std::dec << std::endl;
+    }
+    
+    void testArrayCopyDebug() {
+        printTestHeader("Test Program: Array Copy (Debug)");
+        
+        cpu.reset();
+        std::vector<uint8> rom(0x10000, 0xEA);
+        memory.reset();
+        
+        int pc = 0x8000;
+        rom[pc++] = 0xA2;        // LDX #$00
+        rom[pc++] = 0x00;
+        // loop:
+        int loop_start = pc;
+        rom[pc++] = 0xBD;        // LDA $0100,X  ← Source at 0x0100
+        rom[pc++] = 0x00;
+        rom[pc++] = 0x01;        // ✓ Correct
+        rom[pc++] = 0x9D;        // STA $0200,X  ← Dest should be 0x0200
+        rom[pc++] = 0x00;
+        rom[pc++] = 0x02;        // ← CHANGE THIS from 0x30 to 0x02!
+        rom[pc++] = 0xE8;        // INX
+        rom[pc++] = 0xE0;        // CPX #$04
+        rom[pc++] = 0x04;
+        rom[pc++] = 0xD0;        // BNE loop
+        uint8 offset = loop_start - (pc + 1);
+        rom[pc++] = static_cast<uint8>(offset);
+        
+        memory.loadROM(rom);
+        
+        // Write test data to 0x0100 (source)
+        memory.write(0x0100, 0xAA);
+        memory.write(0x0101, 0xBB);
+        memory.write(0x0102, 0xCC);
+        memory.write(0x0103, 0xDD);
+        
+        cpu.registers.PC = 0x8000;
+        cpu.registers.DBR = 0x00;
+        cpu.setFlag(FLAG_MEMORY_WIDTH, true);
+        cpu.setFlag(FLAG_INDEX_WIDTH, true);
+        
+        // ADD THIS: Verify source data is written
+        std::cout << "  Source data:" << std::endl;
+        std::cout << "    Memory[0x0100] = 0x" << std::hex << (int)memory.read(0x0100) << std::dec << std::endl;
+        std::cout << "    Memory[0x0101] = 0x" << std::hex << (int)memory.read(0x0101) << std::dec << std::endl;
+        std::cout << "    Memory[0x0102] = 0x" << std::hex << (int)memory.read(0x0102) << std::dec << std::endl;
+        std::cout << "    Memory[0x0103] = 0x" << std::hex << (int)memory.read(0x0103) << std::dec << std::endl;
+        std::cout << std::endl;
+        
+        // Execute with trace
+        int instructions = 0;
+        while (instructions < 50 && cpu.registers.PC < 0x800D) {
+            uint16 pc_before = cpu.registers.PC;
+            uint8 opcode = memory.read((cpu.registers.PBR << 16) | cpu.registers.PC);
+            uint8 x_before = cpu.registers.X & 0xFF;
+            uint8 a_before = cpu.registers.A & 0xFF;
+            
+            cpu.executeInstruction();
+            instructions++;
+            
+            uint8 x_after = cpu.registers.X & 0xFF;
+            uint8 a_after = cpu.registers.A & 0xFF;
+            uint16 pc_after = cpu.registers.PC;
+            
+            if (instructions <= 20) {
+                std::cout << "  [" << instructions << "] PC=0x" << std::hex << pc_before
+                          << " op=0x" << (int)opcode << std::dec
+                          << " X=" << (int)x_before << "->" << (int)x_after
+                          << " A=0x" << std::hex << (int)a_before << "->0x" << (int)a_after << std::dec
+                          << " -> PC=0x" << std::hex << pc_after << std::dec << std::endl;
+            }
+        }
+        
+        std::cout << std::endl;
+        std::cout << "  Final state:" << std::endl;
+        std::cout << "    X = " << (int)(cpu.registers.X & 0xFF) << std::endl;
+        std::cout << "    Destination data:" << std::endl;
+        std::cout << "      Memory[0x0200] = 0x" << std::hex << (int)memory.read(0x0200) << std::dec << " (expected 0xAA)" << std::endl;
+        std::cout << "      Memory[0x0201] = 0x" << std::hex << (int)memory.read(0x0201) << std::dec << " (expected 0xBB)" << std::endl;
+        std::cout << "      Memory[0x0202] = 0x" << std::hex << (int)memory.read(0x0202) << std::dec << " (expected 0xCC)" << std::endl;
+        std::cout << "      Memory[0x0203] = 0x" << std::hex << (int)memory.read(0x0203) << std::dec << " (expected 0xDD)" << std::endl;
+    }
+    
+    void testMultiplication() {
+        printTestHeader("Test Program: Multiplication 5×3");
+        
+        cpu.reset();
+        std::vector<uint8> rom(0x10000, 0xEA);
+        
+        int pc = 0x8000;
+        rom[pc++] = 0xA9;        // LDA #$00
+        rom[pc++] = 0x00;
+        rom[pc++] = 0xA0;        // LDY #$03
+        rom[pc++] = 0x03;
+        // outer:
+        int outer_start = pc;
+        rom[pc++] = 0xA2;        // LDX #$05
+        rom[pc++] = 0x05;
+        // inner:
+        int inner_start = pc;
+        rom[pc++] = 0x1A;        // INC A
+        rom[pc++] = 0xCA;        // DEX
+        rom[pc++] = 0xD0;        // BNE inner
+        int8 offset = inner_start - (pc + 1);
+        rom[pc++] = static_cast<uint8>(offset);
+        rom[pc++] = 0x88;        // DEY
+        rom[pc++] = 0xD0;        // BNE outer
+        offset = outer_start - (pc + 1);
+        rom[pc++] = static_cast<uint8>(offset);
+        rom[pc++] = 0x8D;        // STA $1000
+        rom[pc++] = 0x00;
+        rom[pc++] = 0x10;
+        
+        memory.loadROM(rom);
+        cpu.registers.PC = 0x8000;
+        cpu.setFlag(FLAG_MEMORY_WIDTH, true);
+        cpu.setFlag(FLAG_INDEX_WIDTH, true);
+        
+        // Execute program (nested loops need more iterations)
+        for (int i = 0; i < 500; i++) {
+            cpu.executeInstruction();
+            if (cpu.registers.PC >= 0x8012) break;
+        }
+        
+        assert_equal("Multiplication result", 0x0F, memory.read(0x1000));
+        assert_equal("A contains result", 0x0F, cpu.registers.A & 0xFF);
+        
+        std::cout << "  5 × 3 = 15 computed successfully!" << std::endl;
+    }
+    
+    void testBIT_Operation() {
+        printTestHeader("Test BIT Operation");
+        
+        cpu.reset();
+        std::vector<uint8> rom(0x10000, 0xEA);
+        memory.loadROM(rom);
+        memory.reset();
+        
+        // Test BIT Immediate (0x89) - 8-bit mode
+        cpu.registers.A = 0x12FF;
+        cpu.setFlag(FLAG_MEMORY_WIDTH, true);  // 8-bit mode
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x89;  // BIT Immediate
+        rom[0x8001] = 0xF0;  // Test with 0xF0
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        // A & 0xF0 = 0xF0, so Z should be clear
+        // N should be set (bit 7 of operand is 1)
+        // V should be set (bit 6 of operand is 1)
+        assert_equal("BIT A unchanged", 0x12FF, cpu.registers.A);
+        assert_true("BIT Z flag clear (result non-zero)", !cpu.getFlag(FLAG_ZERO));
+        assert_true("BIT N flag set (bit 7 of operand)", cpu.getFlag(FLAG_NEGATIVE));
+        assert_true("BIT V flag set (bit 6 of operand)", cpu.getFlag(FLAG_OVERFLOW));
+        
+        // Test BIT with zero result
+        cpu.registers.A = 0x120F;
+        cpu.registers.PC = 0x8000;
+        rom[0x8001] = 0xF0;  // A & 0xF0 = 0x00
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_true("BIT Z flag set (result zero)", cpu.getFlag(FLAG_ZERO));
+        assert_true("BIT N flag set from operand", cpu.getFlag(FLAG_NEGATIVE));
+        
+        // Test BIT Direct Page
+        memory.write(0x0010, 0x40);  // Bit 6 set, bit 7 clear
+        cpu.registers.A = 0x12FF;
+        cpu.registers.D = 0x0000;
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x24;  // BIT Direct Page
+        rom[0x8001] = 0x10;
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_true("BIT N flag clear (bit 7 of mem)", !cpu.getFlag(FLAG_NEGATIVE));
+        assert_true("BIT V flag set (bit 6 of mem)", cpu.getFlag(FLAG_OVERFLOW));
+        
+        // Test BIT 16-bit mode
+        cpu.setFlag(FLAG_MEMORY_WIDTH, false);  // 16-bit mode
+        memory.write16(0x1000, 0xC000);  // Bits 15 and 14 set
+        cpu.registers.A = 0xFFFF;
+        cpu.registers.DBR = 0x00;
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x2C;  // BIT Absolute
+        rom[0x8001] = 0x00;
+        rom[0x8002] = 0x10;
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_true("BIT 16-bit N flag set", cpu.getFlag(FLAG_NEGATIVE));
+        assert_true("BIT 16-bit V flag set", cpu.getFlag(FLAG_OVERFLOW));
+    }
+    
+    void testASL_Operation() {
+        printTestHeader("Test ASL Operation");
+        
+        cpu.reset();
+        std::vector<uint8> rom(0x10000, 0xEA);
+        memory.loadROM(rom);
+        
+        // Test ASL A (0x0A) - 8-bit mode
+        cpu.registers.A = 0x1242;  // 0100 0010
+        cpu.setFlag(FLAG_MEMORY_WIDTH, true);
+        cpu.setFlag(FLAG_CARRY, false);
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x0A;  // ASL A
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        // 0x42 << 1 = 0x84
+        assert_equal("ASL A result", 0x1284, cpu.registers.A);
+        assert_true("ASL C flag clear (bit 7 was 0)", !cpu.getFlag(FLAG_CARRY));
+        assert_true("ASL N flag set (result bit 7)", cpu.getFlag(FLAG_NEGATIVE));
+        
+        // Test ASL with carry out
+        cpu.registers.A = 0x12C0;  // 1100 0000
+        cpu.registers.PC = 0x8000;
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        // 0xC0 << 1 = 0x80, bit 7 goes to carry
+        assert_equal("ASL A with carry", 0x1280, cpu.registers.A);
+        assert_true("ASL C flag set (bit 7 was 1)", cpu.getFlag(FLAG_CARRY));
+        
+        // Test ASL memory
+        memory.reset();
+        memory.write(0x0010, 0x55);  // 0101 0101
+        cpu.registers.D = 0x0000;
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x06;  // ASL Direct Page
+        rom[0x8001] = 0x10;
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        // 0x55 << 1 = 0xAA
+        assert_equal("ASL memory result", 0xAA, memory.read(0x0010));
+        assert_true("ASL memory C clear", !cpu.getFlag(FLAG_CARRY));
+        assert_true("ASL memory N set", cpu.getFlag(FLAG_NEGATIVE));
+        
+        // Test ASL 16-bit mode
+        cpu.setFlag(FLAG_MEMORY_WIDTH, false);
+        cpu.registers.A = 0x4000;
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x0A;  // ASL A
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_equal("ASL 16-bit result", 0x8000, cpu.registers.A);
+        assert_true("ASL 16-bit C clear", !cpu.getFlag(FLAG_CARRY));
+        assert_true("ASL 16-bit N set", cpu.getFlag(FLAG_NEGATIVE));
+    }
+    
+    void testLSR_Operation() {
+        printTestHeader("Test LSR Operation");
+        
+        cpu.reset();
+        std::vector<uint8> rom(0x10000, 0xEA);
+        memory.loadROM(rom);
+        
+        // Test LSR A (0x4A) - 8-bit mode
+        cpu.registers.A = 0x1284;  // 1000 0100
+        cpu.setFlag(FLAG_MEMORY_WIDTH, true);
+        cpu.setFlag(FLAG_CARRY, false);
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x4A;  // LSR A
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        // 0x84 >> 1 = 0x42
+        assert_equal("LSR A result", 0x1242, cpu.registers.A);
+        assert_true("LSR C flag clear (bit 0 was 0)", !cpu.getFlag(FLAG_CARRY));
+        assert_true("LSR N flag clear (always)", !cpu.getFlag(FLAG_NEGATIVE));
+        
+        // Test LSR with carry out
+        cpu.registers.A = 0x1243;  // 0100 0011
+        cpu.registers.PC = 0x8000;
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        // 0x43 >> 1 = 0x21, bit 0 goes to carry
+        assert_equal("LSR A with carry", 0x1221, cpu.registers.A);
+        assert_true("LSR C flag set (bit 0 was 1)", cpu.getFlag(FLAG_CARRY));
+        
+        // Test LSR memory
+        memory.reset();
+        memory.write(0x0010, 0xAA);  // 1010 1010
+        cpu.registers.D = 0x0000;
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x46;  // LSR Direct Page
+        rom[0x8001] = 0x10;
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        // 0xAA >> 1 = 0x55
+        assert_equal("LSR memory result", 0x55, memory.read(0x0010));
+        assert_true("LSR memory C clear", !cpu.getFlag(FLAG_CARRY));
+        
+        // Test LSR 16-bit mode
+        cpu.setFlag(FLAG_MEMORY_WIDTH, false);
+        cpu.registers.A = 0x8001;
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x4A;  // LSR A
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_equal("LSR 16-bit result", 0x4000, cpu.registers.A);
+        assert_true("LSR 16-bit C set", cpu.getFlag(FLAG_CARRY));
+        assert_true("LSR 16-bit N clear", !cpu.getFlag(FLAG_NEGATIVE));
+    }
+    
+    void testROL_Operation() {
+        printTestHeader("Test ROL Operation");
+        
+        cpu.reset();
+        std::vector<uint8> rom(0x10000, 0xEA);
+        memory.loadROM(rom);
+        
+        // Test ROL A (0x2A) - 8-bit mode with carry clear
+        cpu.registers.A = 0x1242;  // 0100 0010
+        cpu.setFlag(FLAG_MEMORY_WIDTH, true);
+        cpu.setFlag(FLAG_CARRY, false);
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x2A;  // ROL A
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        // 0x42 << 1 with carry=0 -> 0x84
+        assert_equal("ROL A result", 0x1284, cpu.registers.A);
+        assert_true("ROL C flag clear (bit 7 was 0)", !cpu.getFlag(FLAG_CARRY));
+        
+        // Test ROL with carry in and out
+        cpu.registers.A = 0x12C1;  // 1100 0001
+        cpu.setFlag(FLAG_CARRY, true);  // Set carry before
+        cpu.registers.PC = 0x8000;
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        // 0xC1 << 1 with carry=1 -> 0x83, old bit 7 goes to carry
+        assert_equal("ROL A with carry", 0x1283, cpu.registers.A);
+        assert_true("ROL C flag set (bit 7 was 1)", cpu.getFlag(FLAG_CARRY));
+        
+        // Test ROL memory
+        memory.reset();
+        memory.write(0x0010, 0x55);  // 0101 0101
+        cpu.setFlag(FLAG_CARRY, true);
+        cpu.registers.D = 0x0000;
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x26;  // ROL Direct Page
+        rom[0x8001] = 0x10;
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        // 0x55 << 1 with carry=1 -> 0xAB
+        assert_equal("ROL memory result", 0xAB, memory.read(0x0010));
+        assert_true("ROL memory C clear", !cpu.getFlag(FLAG_CARRY));
+        
+        // Test ROL 16-bit mode
+        cpu.setFlag(FLAG_MEMORY_WIDTH, false);
+        cpu.registers.A = 0x8000;
+        cpu.setFlag(FLAG_CARRY, true);
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x2A;  // ROL A
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        // 0x8000 << 1 with carry=1 -> 0x0001
+        assert_equal("ROL 16-bit result", 0x0001, cpu.registers.A);
+        assert_true("ROL 16-bit C set", cpu.getFlag(FLAG_CARRY));
+    }
+    
+    void testROR_Operation() {
+        printTestHeader("Test ROR Operation");
+        
+        cpu.reset();
+        std::vector<uint8> rom(0x10000, 0xEA);
+        memory.loadROM(rom);
+        
+        // Test ROR A (0x6A) - 8-bit mode with carry clear
+        cpu.registers.A = 0x1242;  // 0100 0010
+        cpu.setFlag(FLAG_MEMORY_WIDTH, true);
+        cpu.setFlag(FLAG_CARRY, false);
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x6A;  // ROR A
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        // 0x42 >> 1 with carry=0 -> 0x21
+        assert_equal("ROR A result", 0x1221, cpu.registers.A);
+        assert_true("ROR C flag clear (bit 0 was 0)", !cpu.getFlag(FLAG_CARRY));
+        
+        // Test ROR with carry in and out
+        cpu.registers.A = 0x1283;  // 1000 0011
+        cpu.setFlag(FLAG_CARRY, true);  // Set carry before
+        cpu.registers.PC = 0x8000;
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        // 0x83 >> 1 with carry=1 -> 0xC1, old bit 0 goes to carry
+        assert_equal("ROR A with carry", 0x12C1, cpu.registers.A);
+        assert_true("ROR C flag set (bit 0 was 1)", cpu.getFlag(FLAG_CARRY));
+        assert_true("ROR N flag set (carry went to bit 7)", cpu.getFlag(FLAG_NEGATIVE));
+        
+        // Test ROR memory
+        memory.reset();
+        memory.write(0x0010, 0xAA);  // 1010 1010
+        cpu.setFlag(FLAG_CARRY, true);
+        cpu.registers.D = 0x0000;
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x66;  // ROR Direct Page
+        rom[0x8001] = 0x10;
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        // 0xAA >> 1 with carry=1 -> 0xD5
+        assert_equal("ROR memory result", 0xD5, memory.read(0x0010));
+        assert_true("ROR memory C clear", !cpu.getFlag(FLAG_CARRY));
+        
+        // Test ROR 16-bit mode
+        cpu.setFlag(FLAG_MEMORY_WIDTH, false);
+        cpu.registers.A = 0x0001;
+        cpu.setFlag(FLAG_CARRY, true);
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x6A;  // ROR A
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        // 0x0001 >> 1 with carry=1 -> 0x8000
+        assert_equal("ROR 16-bit result", 0x8000, cpu.registers.A);
+        assert_true("ROR 16-bit C set", cpu.getFlag(FLAG_CARRY));
+        assert_true("ROR 16-bit N set", cpu.getFlag(FLAG_NEGATIVE));
+    }
+    
+    void testShiftRotate16Bit() {
+        printTestHeader("Test Shift/Rotate 16-bit Mode");
+        
+        cpu.reset();
+        std::vector<uint8> rom(0x10000, 0xEA);
+        memory.loadROM(rom);
+        memory.reset();
+        
+        // Test ASL 16-bit with overflow
+        cpu.setFlag(FLAG_MEMORY_WIDTH, false);
+        cpu.registers.A = 0xC000;
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x0A;  // ASL A
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_equal("ASL 16-bit overflow", 0x8000, cpu.registers.A);
+        assert_true("ASL 16-bit C set", cpu.getFlag(FLAG_CARRY));
+        
+        // Test LSR 16-bit
+        cpu.registers.A = 0x8000;
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x4A;  // LSR A
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_equal("LSR 16-bit", 0x4000, cpu.registers.A);
+        assert_true("LSR 16-bit C clear", !cpu.getFlag(FLAG_CARRY));
+        
+        // Test ROL/ROR chain
+        cpu.registers.A = 0xAAAA;
+        cpu.setFlag(FLAG_CARRY, false);
+        
+        // ROL
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x2A;  // ROL A
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_equal("ROL 16-bit chain", 0x5554, cpu.registers.A);
+        assert_true("ROL chain C set", cpu.getFlag(FLAG_CARRY));
+        
+        // ROR (should restore)
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x6A;  // ROR A
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_equal("ROR 16-bit chain", 0xAAAA, cpu.registers.A);
+        assert_true("ROR chain C clear", !cpu.getFlag(FLAG_CARRY));
+    }
+       
+    void testFlagSetClear() {
+        printTestHeader("Test Flag Set/Clear");
+        
+        cpu.reset();
+        std::vector<uint8> rom(0x10000, 0xEA);
+        memory.loadROM(rom);
+        
+        // Test CLC (0x18)
+        cpu.setFlag(FLAG_CARRY, true);
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x18;  // CLC
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_true("CLC clears carry", !cpu.getFlag(FLAG_CARRY));
+        
+        // Test SEC (0x38)
+        cpu.setFlag(FLAG_CARRY, false);
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x38;  // SEC
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_true("SEC sets carry", cpu.getFlag(FLAG_CARRY));
+        
+        // Test CLI (0x58)
+        cpu.setFlag(FLAG_IRQ_DISABLE, true);
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x58;  // CLI
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_true("CLI clears interrupt disable", !cpu.getFlag(FLAG_IRQ_DISABLE));
+        
+        // Test SEI (0x78)
+        cpu.setFlag(FLAG_IRQ_DISABLE, false);
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x78;  // SEI
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_true("SEI sets interrupt disable", cpu.getFlag(FLAG_IRQ_DISABLE));
+        
+        // Test CLV (0xB8)
+        cpu.setFlag(FLAG_OVERFLOW, true);
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0xB8;  // CLV
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_true("CLV clears overflow", !cpu.getFlag(FLAG_OVERFLOW));
+        
+        // Test CLD (0xD8)
+        cpu.setFlag(FLAG_DECIMAL, true);
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0xD8;  // CLD
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_true("CLD clears decimal", !cpu.getFlag(FLAG_DECIMAL));
+        
+        // Test SED (0xF8)
+        cpu.setFlag(FLAG_DECIMAL, false);
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0xF8;  // SED
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_true("SED sets decimal", cpu.getFlag(FLAG_DECIMAL));
+    }
+    
+    void testREP_SEP_Operations() {
+        printTestHeader("Test REP/SEP Operations");
+        
+        cpu.reset();
+        std::vector<uint8> rom(0x10000, 0xEA);
+        memory.loadROM(rom);
+        
+        // Test REP (0xC2) - Reset (clear) processor status bits
+        cpu.registers.P = 0xFF;  // All flags set
+        cpu.registers.E = false;  // Native mode
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0xC2;  // REP
+        rom[0x8001] = 0x30;  // Clear M and X flags (bits 5 and 4)
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_true("REP clears M flag", !cpu.getFlag(FLAG_MEMORY_WIDTH));
+        assert_true("REP clears X flag", !cpu.getFlag(FLAG_INDEX_WIDTH));
+        assert_true("REP preserves other flags", cpu.getFlag(FLAG_CARRY));
+        
+        // Test REP in emulation mode (M and X cannot be cleared)
+        cpu.registers.P = 0xFF;
+        cpu.registers.E = true;  // Emulation mode
+        cpu.registers.PC = 0x8000;
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_true("REP in emulation preserves M", cpu.getFlag(FLAG_MEMORY_WIDTH));
+        assert_true("REP in emulation preserves X", cpu.getFlag(FLAG_INDEX_WIDTH));
+        
+        // Test SEP (0xE2) - Set processor status bits
+        cpu.registers.P = 0x00;  // All flags clear
+        cpu.registers.E = false;  // Native mode
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0xE2;  // SEP
+        rom[0x8001] = 0x30;  // Set M and X flags
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_true("SEP sets M flag", cpu.getFlag(FLAG_MEMORY_WIDTH));
+        assert_true("SEP sets X flag", cpu.getFlag(FLAG_INDEX_WIDTH));
+        assert_true("SEP preserves other flags", !cpu.getFlag(FLAG_CARRY));
+        
+        // Test SEP setting multiple flags
+        cpu.registers.P = 0x00;
+        cpu.registers.PC = 0x8000;
+        rom[0x8001] = 0x07;  // Set C, Z, and I flags (bits 0, 1, 2)
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_true("SEP sets C flag", cpu.getFlag(FLAG_CARRY));
+        assert_true("SEP sets Z flag", cpu.getFlag(FLAG_ZERO));
+        assert_true("SEP sets I flag", cpu.getFlag(FLAG_IRQ_DISABLE));
+    }
+    
+    void testXCE_Operation() {
+        printTestHeader("Test XCE Operation");
+        
+        cpu.reset();
+        std::vector<uint8> rom(0x10000, 0xEA);
+        memory.loadROM(rom);
+        
+        // Test XCE (0xFB) - Exchange Carry and Emulation flags
+        // Start in emulation mode (E=1), carry clear (C=0)
+        cpu.registers.E = true;
+        cpu.setFlag(FLAG_CARRY, false);
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0xFB;  // XCE
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        // After XCE: E=0 (native mode), C=1 (old E value)
+        assert_true("XCE switches to native mode", !cpu.registers.E);
+        assert_true("XCE sets carry from old E", cpu.getFlag(FLAG_CARRY));
+        
+        // Test XCE going back to emulation mode
+        cpu.setFlag(FLAG_CARRY, true);  // C=1
+        cpu.registers.E = false;  // E=0 (native mode)
+        cpu.setFlag(FLAG_MEMORY_WIDTH, false);  // Clear M flag
+        cpu.setFlag(FLAG_INDEX_WIDTH, false);   // Clear X flag
+        cpu.registers.PC = 0x8000;
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        // After XCE: E=1 (emulation mode), C=0 (old E value)
+        assert_true("XCE switches to emulation mode", cpu.registers.E);
+        assert_true("XCE clears carry from old E", !cpu.getFlag(FLAG_CARRY));
+        assert_true("XCE forces M flag in emulation", cpu.getFlag(FLAG_MEMORY_WIDTH));
+        assert_true("XCE forces X flag in emulation", cpu.getFlag(FLAG_INDEX_WIDTH));
+        
+        // Verify that switching to emulation mode resets high bytes
+        cpu.registers.X = 0x1234;
+        cpu.registers.Y = 0x5678;
+        cpu.registers.SP = 0xABCD;
+        cpu.registers.E = false;
+        cpu.setFlag(FLAG_CARRY, true);
+        cpu.registers.PC = 0x8000;
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_equal("XCE clears X high byte", 0x34, cpu.registers.X);
+        assert_equal("XCE clears Y high byte", 0x78, cpu.registers.Y);
+        assert_equal("XCE resets SP to page 1", 0x01CD, cpu.registers.SP);
+    }
+    
+    // ===== TSB/TRB TESTS =====
+    void testTSB_TRB_Operations() {
+        printTestHeader("Test TSB and TRB Operations");
+        
+        cpu.reset();
+        std::vector<uint8> rom(0x10000, 0xEA);
+        memory.loadROM(rom);
+        memory.reset();
+        
+        // Test TSB Direct Page (0x04) - Test and Set Bits
+        memory.write(0x0010, 0x0F);  // 00001111
+        cpu.registers.A = 0x12F0;    // 11110000
+        cpu.setFlag(FLAG_MEMORY_WIDTH, true);  // 8-bit mode
+        cpu.registers.D = 0x0000;
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x04;  // TSB Direct Page
+        rom[0x8001] = 0x10;
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_true("TSB Z=1 (A & mem = 0)", cpu.getFlag(FLAG_ZERO));
+        assert_equal("TSB sets bits", 0xFF, memory.read(0x0010));  // 11111111
+        
+        // Test TSB with overlap
+        memory.write(0x0010, 0xAA);  // 10101010
+        cpu.registers.A = 0x1255;    // 01010101
+        cpu.registers.PC = 0x8000;
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_true("TSB Z=0 (A & mem != 0)", !cpu.getFlag(FLAG_ZERO));
+        assert_equal("TSB result", 0xFF, memory.read(0x0010));  // All bits set
+        
+        // Test TRB Direct Page (0x14) - Test and Reset Bits
+        memory.write(0x0020, 0xFF);  // 11111111
+        cpu.registers.A = 0x120F;    // 00001111
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x14;  // TRB Direct Page
+        rom[0x8001] = 0x20;
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_true("TRB Z=0 (A & mem != 0)", !cpu.getFlag(FLAG_ZERO));
+        assert_equal("TRB clears bits", 0xF0, memory.read(0x0020));  // 11110000
+        
+        // Test TRB Absolute (0x1C) - 16-bit mode
+        cpu.setFlag(FLAG_MEMORY_WIDTH, false);  // 16-bit mode
+        memory.write16(0x1000, 0xFFFF);
+        cpu.registers.A = 0x00FF;
+        cpu.registers.DBR = 0x00;
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x1C;  // TRB Absolute
+        rom[0x8001] = 0x00;
+        rom[0x8002] = 0x10;
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_equal("TRB 16-bit result", 0xFF00, memory.read16(0x1000));
+        
+        // Test TSB Absolute (0x0C) - 16-bit
+        memory.write16(0x1000, 0x0F0F);
+        cpu.registers.A = 0xF0F0;
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x0C;  // TSB Absolute
+        rom[0x8001] = 0x00;
+        rom[0x8002] = 0x10;
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_true("TSB 16-bit Z=1", cpu.getFlag(FLAG_ZERO));
+        assert_equal("TSB 16-bit result", 0xFFFF, memory.read16(0x1000));
+    }
+    
+    // ===== JUMP AND SUBROUTINE TESTS =====
+    void testJumpSubroutine() {
+        printTestHeader("Test Jump and Subroutine Instructions");
+        
+        cpu.reset();
+        std::vector<uint8> rom(0x10000, 0xEA);
+        memory.loadROM(rom);
+        
+        // Test JMP Absolute (0x4C)
+        cpu.registers.PC = 0x8000;
+        cpu.registers.PBR = 0x00;
+        rom[0x8000] = 0x4C;  // JMP Absolute
+        rom[0x8001] = 0x34;  // Low byte
+        rom[0x8002] = 0x12;  // High byte (target: 0x1234)
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_equal("JMP Absolute PC", 0x1234, cpu.registers.PC);
+        assert_equal("JMP Absolute PBR unchanged", 0x00, cpu.registers.PBR);
+        
+        // Test JSR (0x20) - Jump to Subroutine
+        cpu.registers.PC = 0x8000;
+        cpu.registers.SP = 0x01FF;
+        rom[0x8000] = 0x20;  // JSR
+        rom[0x8001] = 0x00;
+        rom[0x8002] = 0x90;  // Target: 0x9000
+        memory.loadROM(rom);
+        
+        uint16 sp_before = cpu.registers.SP;
+        cpu.executeInstruction();
+        
+        assert_equal("JSR PC", 0x9000, cpu.registers.PC);
+        assert_equal("JSR pushed return address", sp_before - 2, cpu.registers.SP);
+        
+        // Verify return address on stack (should be 0x8002, PC-1 of next instruction)
+        uint16 return_addr = memory.read16(cpu.registers.SP + 1);
+        assert_equal("JSR return address", 0x8002, return_addr);
+        
+        // Test RTS (0x60) - Return from Subroutine
+        rom[0x9000] = 0x60;  // RTS
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_equal("RTS PC", 0x8003, cpu.registers.PC);  // 0x8002 + 1
+        assert_equal("RTS SP restored", sp_before, cpu.registers.SP);
+        
+        // Test JMP Indirect (0x6C)
+        memory.write16(0x1000, 0x5678);  // Pointer contains target address
+        cpu.registers.PC = 0x8000;
+        cpu.registers.DBR = 0x00;
+        rom[0x8000] = 0x6C;  // JMP (Absolute Indirect)
+        rom[0x8001] = 0x00;  // Pointer address: 0x1000
+        rom[0x8002] = 0x10;
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_equal("JMP Indirect PC", 0x5678, cpu.registers.PC);
+    }
+    
+    // ===== INTERRUPT TESTS =====
+    void testInterrupts() {
+        printTestHeader("Test Interrupt Instructions");
+        
+        cpu.reset();
+        std::vector<uint8> rom(0x10000, 0xEA);
+        memory.loadROM(rom);
+        memory.reset();
+        
+        // Setup interrupt vectors
+        memory.write16(0xFFE6, 0x8500);  // BRK vector (native mode)
+        memory.write16(0xFFFE, 0x8400);  // BRK vector (emulation mode)
+        memory.write16(0xFFE4, 0x8600);  // COP vector (native mode)
+        memory.write16(0xFFF4, 0x8450);  // COP vector (emulation mode)
+        
+        // Test BRK in emulation mode (0x00)
+        cpu.registers.E = true;  // Emulation mode
+        cpu.registers.PC = 0x8000;
+        cpu.registers.SP = 0x01FF;
+        cpu.registers.P = 0x00;
+        cpu.setFlag(FLAG_IRQ_DISABLE, false);
+        rom[0x8000] = 0x00;  // BRK
+        rom[0x8001] = 0x00;  // Signature byte
+        memory.loadROM(rom);
+        
+        uint16 sp_before = cpu.registers.SP;
+        cpu.executeInstruction();
+        
+        assert_equal("BRK emulation PC", 0x8400, cpu.registers.PC);
+        assert_true("BRK sets I flag", cpu.getFlag(FLAG_IRQ_DISABLE));
+        assert_equal("BRK pushed 3 bytes", sp_before - 3, cpu.registers.SP);
+        
+        // Test BRK in native mode
+        cpu.reset();
+        cpu.registers.E = false;  // Native mode
+        cpu.setFlag(FLAG_MEMORY_WIDTH, false);  // 16-bit mode to distinguish from emulation
+        cpu.registers.PC = 0x8000;
+        cpu.registers.PBR = 0x01;
+        cpu.registers.SP = 0x01FF;
+        memory.loadROM(rom);
+        
+        sp_before = cpu.registers.SP;
+        cpu.executeInstruction();
+        
+        assert_equal("BRK native PC", 0x8500, cpu.registers.PC);
+        assert_equal("BRK native PBR", 0x00, cpu.registers.PBR);
+        assert_equal("BRK native pushed 4 bytes", sp_before - 4, cpu.registers.SP);
+        
+        // Test RTI (0x40) - Return from Interrupt (emulation mode)
+        cpu.reset();
+        cpu.registers.E = true;
+        cpu.registers.SP = 0x01FC;
+        // Push fake interrupt state
+        memory.write16(0x01FD, 0x1234);  // Return PC
+        memory.write(0x01FF, 0x24);      // Status register
+        
+        cpu.registers.PC = 0x8500;
+        rom[0x8500] = 0x40;  // RTI
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_equal("RTI emulation PC", 0x1234, cpu.registers.PC);
+        assert_equal("RTI emulation P", 0x34, cpu.registers.P);  // M and X forced
+        assert_equal("RTI emulation SP", 0x01FF, cpu.registers.SP);
+        
+        // Test COP (0x02) - Coprocessor
+        cpu.reset();
+        cpu.registers.E = true;
+        cpu.registers.PC = 0x8000;
+        cpu.registers.SP = 0x01FF;
+        rom[0x8000] = 0x02;  // COP
+        rom[0x8001] = 0x00;  // Signature
+        memory.loadROM(rom);
+        cpu.executeInstruction();
+        
+        assert_equal("COP PC", 0x8450, cpu.registers.PC);
+        assert_true("COP sets I flag", cpu.getFlag(FLAG_IRQ_DISABLE));
+        
+        // Test WDM (0x42) - Reserved/NOP
+        cpu.reset();
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x42;  // WDM
+        rom[0x8001] = 0xFF;  // Reserved byte
+        memory.loadROM(rom);
+        
+        uint16 pc_before = cpu.registers.PC;
+        cpu.executeInstruction();
+        
+        assert_equal("WDM PC advances by 2", pc_before + 2, cpu.registers.PC);
+    }
+    
+    // ===== BLOCK MOVE TESTS =====
+    void testBlockMove() {
+        printTestHeader("Test Block Move Instructions");
+        
+        cpu.reset();
+        std::vector<uint8> rom(0x10000, 0xEA);
+        memory.loadROM(rom);
+        memory.reset();
+        
+        // Setup source data
+        memory.write(0x011000, 0xAA);
+        memory.write(0x011001, 0xBB);
+        memory.write(0x011002, 0xCC);
+        memory.write(0x011003, 0xDD);
+        
+        // Test MVN (0x54) - Block Move Next (increment)
+        cpu.registers.A = 0x0003;    // Move 4 bytes (count - 1)
+        cpu.registers.X = 0x1000;    // Source offset
+        cpu.registers.Y = 0x2000;    // Dest offset
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x54;  // MVN
+        rom[0x8001] = 0x02;  // Dest bank
+        rom[0x8002] = 0x01;  // Source bank
+        memory.loadROM(rom);
+        
+        // Execute until block move completes
+        int iterations = 0;
+        while (cpu.registers.A != 0xFFFF && iterations < 10) {
+            cpu.executeInstruction();
+            iterations++;
+        }
+        
+        assert_equal("MVN byte 0", 0xAA, memory.read(0x022000));
+        assert_equal("MVN byte 1", 0xBB, memory.read(0x022001));
+        assert_equal("MVN byte 2", 0xCC, memory.read(0x022002));
+        assert_equal("MVN byte 3", 0xDD, memory.read(0x022003));
+        assert_equal("MVN X incremented", 0x1004, cpu.registers.X);
+        assert_equal("MVN Y incremented", 0x2004, cpu.registers.Y);
+        assert_equal("MVN DBR updated", 0x02, cpu.registers.DBR);
+        
+        // Test MVP (0x44) - Block Move Previous (decrement)
+        memory.reset();
+        memory.write(0x011003, 0x11);
+        memory.write(0x011002, 0x22);
+        memory.write(0x011001, 0x33);
+        memory.write(0x011000, 0x44);
+        
+        cpu.registers.A = 0x0003;    // Move 4 bytes
+        cpu.registers.X = 0x1003;    // Source offset (end)
+        cpu.registers.Y = 0x3003;    // Dest offset (end)
+        cpu.registers.PC = 0x8000;
+        rom[0x8000] = 0x44;  // MVP
+        rom[0x8001] = 0x03;  // Dest bank
+        rom[0x8002] = 0x01;  // Source bank
+        memory.loadROM(rom);
+        
+        iterations = 0;
+        while (cpu.registers.A != 0xFFFF && iterations < 10) {
+            cpu.executeInstruction();
+            iterations++;
+        }
+        
+        assert_equal("MVP byte 3", 0x11, memory.read(0x033003));
+        assert_equal("MVP byte 2", 0x22, memory.read(0x033002));
+        assert_equal("MVP byte 1", 0x33, memory.read(0x033001));
+        assert_equal("MVP byte 0", 0x44, memory.read(0x033000));
+        assert_equal("MVP X decremented", 0x0FFF, cpu.registers.X);
+        assert_equal("MVP Y decremented", 0x2FFF, cpu.registers.Y);
+    }
 };
 
 int main() {

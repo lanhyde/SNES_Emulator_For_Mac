@@ -296,7 +296,102 @@ int CPU65c816::decodeAndExecute(uint8 opcode) {
         case 0x88: // DEY
             op_DEY();
             return 2;
+        case 0xA2: // LDX Immediate
+            if (isIndex8Bit()) {
+                op_LDX(getAddress_Immediate());
+                return 2;
+            } else {
+                op_LDX(getAddress_Immediate());
+                return 3;
+            }
+        case 0xAD: // LDA Absolute
+            op_LDA(getAddress_Absolute());
+            return isMemory8Bit() ? 4 : 5;
+        case 0xBD: // LDA Absolute,X
+            op_LDA(getAddress_AbsoluteX());
+            return isMemory8Bit() ? 4 : 5;
 
+        case 0x9D: // STA Absolute,X
+            op_STA(getAddress_AbsoluteX());
+            return isMemory8Bit() ? 5 : 6;
+        case 0xA6: // LDX Direct Page
+            op_LDX(getAddress_Direct());
+            return isIndex8Bit() ? 3 : 4;
+
+        case 0xB6: // LDX Direct Page,Y
+            op_LDX(getAddress_DirectY());
+            return isIndex8Bit() ? 4 : 5;
+
+        case 0xAE: // LDX Absolute
+            op_LDX(getAddress_Absolute());
+            return isIndex8Bit() ? 4 : 5;
+
+        case 0xBE: // LDX Absolute,Y
+            op_LDX(getAddress_AbsoluteY());
+            return isIndex8Bit() ? 4 : 5;
+
+        // LDY - Load Y Register
+        case 0xA0: // LDY Immediate
+            if (isIndex8Bit()) {
+                op_LDY(getAddress_Immediate());
+                return 2;
+            } else {
+                op_LDY(getAddress_Immediate());
+                return 3;
+            }
+
+        case 0xA4: // LDY Direct Page
+            op_LDY(getAddress_Direct());
+            return isIndex8Bit() ? 3 : 4;
+
+        case 0xB4: // LDY Direct Page,X
+            op_LDY(getAddress_DirectX());
+            return isIndex8Bit() ? 4 : 5;
+
+        case 0xAC: // LDY Absolute
+            op_LDY(getAddress_Absolute());
+            return isIndex8Bit() ? 4 : 5;
+
+        case 0xBC: // LDY Absolute,X
+            op_LDY(getAddress_AbsoluteX());
+            return isIndex8Bit() ? 4 : 5;
+
+        // STX - Store X Register
+        case 0x86: // STX Direct Page
+            op_STX(getAddress_Direct());
+            return isIndex8Bit() ? 3 : 4;
+
+        case 0x96: // STX Direct Page,Y
+            op_STX(getAddress_DirectY());
+            return isIndex8Bit() ? 4 : 5;
+
+        case 0x8E: // STX Absolute
+            op_STX(getAddress_Absolute());
+            return isIndex8Bit() ? 4 : 5;
+
+        // STY - Store Y Register
+        case 0x84: // STY Direct Page
+            op_STY(getAddress_Direct());
+            return isIndex8Bit() ? 3 : 4;
+
+        case 0x94: // STY Direct Page,X
+            op_STY(getAddress_DirectX());
+            return isIndex8Bit() ? 4 : 5;
+
+        case 0x8C: // STY Absolute
+            op_STY(getAddress_Absolute());
+            return isIndex8Bit() ? 4 : 5;
+        case 0x8D: // STA Absolute ← CRITICAL FOR YOUR TESTS!
+            op_STA(getAddress_Absolute());
+            return isMemory8Bit() ? 4 : 5;
+
+        case 0x85: // STA Direct Page
+            op_STA(getAddress_Direct());
+            return isMemory8Bit() ? 3 : 4;
+
+        case 0x99: // STA Absolute,Y
+            op_STA(getAddress_AbsoluteY());
+            return isMemory8Bit() ? 5 : 6;
         // INC - Increment Memory/Accumulator
         case 0x1A: // INC A
             op_INC_A();
@@ -541,6 +636,243 @@ int CPU65c816::decodeAndExecute(uint8 opcode) {
         case 0x50: // BVC - Branch if Overflow Clear
             op_BVC();
             return 2;
+        case 0x4C: // JMP Absolute
+            {
+                uint16 address = fetchWord();
+                uint32 fullAddress = (static_cast<uint32>(registers.PBR) << 16) | address;
+                op_JMP(fullAddress);
+                return 3;
+            }
+
+        case 0x6C: // JMP (Absolute Indirect)
+            {
+                uint16 pointer = fetchWord();
+                uint32 pointerAddress = (static_cast<uint32>(registers.DBR) << 16) | pointer;
+                uint16 target = read16(pointerAddress);
+                uint32 fullAddress = (static_cast<uint32>(registers.PBR) << 16) | target;
+                op_JMP(fullAddress);
+                return 5;
+            }
+
+        case 0x7C: // JMP (Absolute Indexed Indirect,X)
+            {
+                uint16 pointer = fetchWord();
+                uint16 indexedPointer = pointer + registers.X;
+                uint32 pointerAddress = (static_cast<uint32>(registers.PBR) << 16) | indexedPointer;
+                uint16 target = read16(pointerAddress);
+                uint32 fullAddress = (static_cast<uint32>(registers.PBR) << 16) | target;
+                op_JMP(fullAddress);
+                return 6;
+            }
+
+        // JSR - Jump to Subroutine
+        case 0x20: // JSR Absolute
+            {
+                uint16 address = fetchWord();
+                uint32 fullAddress = (static_cast<uint32>(registers.PBR) << 16) | address;
+                op_JSR(fullAddress);
+                return 6;
+            }
+
+        // RTS - Return from Subroutine
+        case 0x60: // RTS
+            op_RTS();
+            return 6;
+
+        // RTI - Return from Interrupt
+        case 0x40: // RTI
+            op_RTI();
+            return 6;
+        case 0x24:                  // BIT Direct Page
+            op_BIT(getAddress_Direct());
+            return isMemory8Bit() ? 3 : 4;
+        case 0x2C:                  // BIT Absolute
+            op_BIT(getAddress_Absolute());
+            return isMemory8Bit() ? 4 : 5;
+        case 0x34: // BIT Direct Page,X
+             op_BIT(getAddress_DirectX());
+             return isMemory8Bit() ? 4 : 5;
+             
+         case 0x3C: // BIT Absolute,X
+             op_BIT(getAddress_AbsoluteX());
+             return isMemory8Bit() ? 4 : 5;
+             
+         case 0x89: // BIT Immediate
+             if (isMemory8Bit()) {
+                 op_BIT(getAddress_Immediate());
+                 return 2;
+             } else {
+                 op_BIT(getAddress_Immediate());
+                 return 3;
+             }
+         
+         // ASL - Arithmetic Shift Left
+         case 0x0A: // ASL A
+             op_ASL_A();
+             return 2;
+             
+         case 0x06: // ASL Direct Page
+             op_ASL(getAddress_Direct());
+             return isMemory8Bit() ? 5 : 6;
+             
+         case 0x16: // ASL Direct Page,X
+             op_ASL(getAddress_DirectX());
+             return isMemory8Bit() ? 6 : 7;
+             
+         case 0x0E: // ASL Absolute
+             op_ASL(getAddress_Absolute());
+             return isMemory8Bit() ? 6 : 7;
+             
+         case 0x1E: // ASL Absolute,X
+             op_ASL(getAddress_AbsoluteX());
+             return isMemory8Bit() ? 7 : 8;
+         
+         // LSR - Logical Shift Right
+         case 0x4A: // LSR A
+             op_LSR_A();
+             return 2;
+             
+         case 0x46: // LSR Direct Page
+             op_LSR(getAddress_Direct());
+             return isMemory8Bit() ? 5 : 6;
+             
+         case 0x56: // LSR Direct Page,X
+             op_LSR(getAddress_DirectX());
+             return isMemory8Bit() ? 6 : 7;
+             
+         case 0x4E: // LSR Absolute
+             op_LSR(getAddress_Absolute());
+             return isMemory8Bit() ? 6 : 7;
+             
+         case 0x5E: // LSR Absolute,X
+             op_LSR(getAddress_AbsoluteX());
+             return isMemory8Bit() ? 7 : 8;
+         
+         // ROL - Rotate Left
+         case 0x2A: // ROL A
+             op_ROL_A();
+             return 2;
+             
+         case 0x26: // ROL Direct Page
+             op_ROL(getAddress_Direct());
+             return isMemory8Bit() ? 5 : 6;
+             
+         case 0x36: // ROL Direct Page,X
+             op_ROL(getAddress_DirectX());
+             return isMemory8Bit() ? 6 : 7;
+             
+         case 0x2E: // ROL Absolute
+             op_ROL(getAddress_Absolute());
+             return isMemory8Bit() ? 6 : 7;
+             
+         case 0x3E: // ROL Absolute,X
+             op_ROL(getAddress_AbsoluteX());
+             return isMemory8Bit() ? 7 : 8;
+         
+         // ROR - Rotate Right
+         case 0x6A: // ROR A
+             op_ROR_A();
+             return 2;
+             
+         case 0x66: // ROR Direct Page
+             op_ROR(getAddress_Direct());
+             return isMemory8Bit() ? 5 : 6;
+             
+         case 0x76: // ROR Direct Page,X
+             op_ROR(getAddress_DirectX());
+             return isMemory8Bit() ? 6 : 7;
+             
+         case 0x6E: // ROR Absolute
+             op_ROR(getAddress_Absolute());
+             return isMemory8Bit() ? 6 : 7;
+             
+         case 0x7E: // ROR Absolute,X
+             op_ROR(getAddress_AbsoluteX());
+             return isMemory8Bit() ? 7 : 8;
+         // Flag Manipulation
+         case 0x18: // CLC - Clear Carry
+             op_CLC();
+             return 2;
+             
+         case 0x38: // SEC - Set Carry
+             op_SEC();
+             return 2;
+             
+         case 0x58: // CLI - Clear Interrupt Disable
+             op_CLI();
+             return 2;
+             
+         case 0x78: // SEI - Set Interrupt Disable
+             op_SEI();
+             return 2;
+             
+         case 0xB8: // CLV - Clear Overflow
+             op_CLV();
+             return 2;
+             
+         case 0xD8: // CLD - Clear Decimal
+             op_CLD();
+             return 2;
+             
+         case 0xF8: // SED - Set Decimal
+             op_SED();
+             return 2;
+             
+         case 0xC2: // REP - Reset Processor Status Bits
+             op_REP();
+             return 3;
+             
+         case 0xE2: // SEP - Set Processor Status Bits
+             op_SEP();
+             return 3;
+             
+         case 0xFB: // XCE - Exchange Carry and Emulation
+             op_XCE();
+             return 2;
+            // Test and Set/Reset Bit instructions
+        case 0x04: // TSB Direct Page
+            op_TSB(getAddress_Direct());
+            return isMemory8Bit() ? 5 : 6;
+            
+        case 0x0C: // TSB Absolute
+            op_TSB(getAddress_Absolute());
+            return isMemory8Bit() ? 6 : 7;
+            
+        case 0x14: // TRB Direct Page
+            op_TRB(getAddress_Direct());
+            return isMemory8Bit() ? 5 : 6;
+            
+        case 0x1C: // TRB Absolute
+            op_TRB(getAddress_Absolute());
+            return isMemory8Bit() ? 6 : 7;
+            // Block move instructions
+        case 0x44: // MVP - Block Move Previous
+            op_MVP();
+            return 7;  // 7 cycles per byte
+            
+        case 0x54: // MVN - Block Move Next
+            op_MVN();
+            return 7;  // 7 cycles per byte
+            // Interrupt instructions
+        case 0x00: // BRK - Software Break
+            op_BRK();
+            return registers.E ? 7 : 8;
+                    
+        case 0x02: // COP - Coprocessor
+            op_COP();
+            return registers.E ? 7 : 8;
+                    
+        case 0x42: // WDM - Reserved
+            op_WDM();
+            return 2;
+                    
+        case 0xDB: // STP - Stop Processor
+            op_STP();
+            return 3;
+                    
+        case 0xCB: // WAI - Wait for Interrupt
+            op_WAI();
+            return 3;
         default:
             // Unknown opcode - for now just NOP
             return 2;
@@ -1274,4 +1606,609 @@ void CPU65c816::op_BVS() {
 void CPU65c816::op_BVC() {
     // Branch if Overflow Clear (V = 0)
     branch(!getFlag(FLAG_OVERFLOW));
+}
+
+void CPU65c816::op_JMP(uint32 address) {
+    // Simple unconditional jump
+    // For absolute: address is already the full 24-bit address
+    // Just set PC to the low 16 bits, PBR to high 8 bits
+    
+    registers.PC = address & 0xFFFF;
+    registers.PBR = (address >> 16) & 0xFF;
+}
+
+void CPU65c816::op_JSR(uint32 address) {
+    // Jump to Subroutine
+    // 1. Push return address (PC - 1) to stack
+    // 2. Set PC to target address
+    
+    // PC currently points to the next instruction
+    // JSR pushes (PC - 1), which points to the last byte of the JSR instruction
+    uint16 returnAddress = registers.PC - 1;
+    
+    // Push high byte first, then low byte (stack grows down)
+    push16(returnAddress);
+    
+    // Jump to subroutine
+    registers.PC = address & 0xFFFF;
+    // Note: JSR doesn't change PBR, stays in same bank
+}
+
+void CPU65c816::op_RTS() {
+    // Return from Subroutine
+    // 1. Pull return address from stack
+    // 2. Add 1 to it (JSR pushed PC-1)
+    // 3. Set PC to that address
+    
+    uint16 returnAddress = pull16();
+    registers.PC = returnAddress + 1;
+    
+    // Note: RTS doesn't affect PBR
+}
+
+void CPU65c816::op_RTI() {
+    // Return from Interrupt
+    // 1. Pull processor status (P) from stack
+    // 2. Pull PC from stack
+    // 3. In native mode, also pull PBR
+    
+    // Pull P register
+    registers.P = pull8();
+    
+    if (registers.E) {
+        // Emulation mode: force M and X flags
+        registers.P |= 0x30;
+    }
+    
+    // Pull PC (16-bit)
+    registers.PC = pull16();
+    
+    // In native mode (E=0), also pull PBR
+    if (!registers.E) {
+        registers.PBR = pull8();
+    }
+}
+
+void CPU65c816::op_BIT(uint32 address) {
+    // BIT - Test Bits in Memory with Accumulator
+    // Performs AND operation but doesn't store result
+    // Sets Z flag based on result
+    // Copies bit 7 to N flag and bit 6 to V flag (from memory operand)
+    
+    if (isMemory8Bit()) {
+        uint8 operand = read8(address);
+        uint8 result = (registers.A & 0xFF) & operand;
+        
+        setFlag(FLAG_ZERO, result == 0);
+        setFlag(FLAG_NEGATIVE, (operand & 0x80) != 0);  // Copy bit 7 from memory
+        setFlag(FLAG_OVERFLOW, (operand & 0x40) != 0);  // Copy bit 6 from memory
+    } else {
+        uint16 operand = read16(address);
+        uint16 result = registers.A & operand;
+        
+        setFlag(FLAG_ZERO, result == 0);
+        setFlag(FLAG_NEGATIVE, (operand & 0x8000) != 0);  // Copy bit 15
+        setFlag(FLAG_OVERFLOW, (operand & 0x4000) != 0);  // Copy bit 14
+    }
+}
+
+void CPU65c816::op_ASL(uint32 address) {
+    // ASL - Arithmetic Shift Left (memory)
+    // Shifts all bits left one position. 0 is shifted into bit 0 and bit 7/15 goes to carry
+    
+    if (isMemory8Bit()) {
+        uint8 value = read8(address);
+        
+        // Bit 7 goes to carry
+        setFlag(FLAG_CARRY, (value & 0x80) != 0);
+        
+        // Shift left
+        value = (value << 1) & 0xFF;
+        
+        write8(address, value);
+        updateNZ8(value);
+    } else {
+        uint16 value = read16(address);
+        
+        // Bit 15 goes to carry
+        setFlag(FLAG_CARRY, (value & 0x8000) != 0);
+        
+        // Shift left
+        value = (value << 1) & 0xFFFF;
+        
+        write16(address, value);
+        updateNZ16(value);
+    }
+}
+
+void CPU65c816::op_ASL_A() {
+    // ASL - Arithmetic Shift Left (accumulator)
+    
+    if (isMemory8Bit()) {
+        uint8 value = registers.A & 0xFF;
+        
+        setFlag(FLAG_CARRY, (value & 0x80) != 0);
+        value = (value << 1) & 0xFF;
+        
+        registers.A = (registers.A & 0xFF00) | value;
+        updateNZ8(value);
+    } else {
+        setFlag(FLAG_CARRY, (registers.A & 0x8000) != 0);
+        registers.A = (registers.A << 1) & 0xFFFF;
+        updateNZ16(registers.A);
+    }
+}
+
+void CPU65c816::op_LSR(uint32 address) {
+    // LSR - Logical Shift Right (memory)
+    // Shifts all bits right one position. 0 is shifted into bit 7/15 and bit 0 goes to carry
+    
+    if (isMemory8Bit()) {
+        uint8 value = read8(address);
+        
+        // Bit 0 goes to carry
+        setFlag(FLAG_CARRY, (value & 0x01) != 0);
+        
+        // Shift right
+        value = value >> 1;
+        
+        write8(address, value);
+        updateNZ8(value);
+    } else {
+        uint16 value = read16(address);
+        
+        // Bit 0 goes to carry
+        setFlag(FLAG_CARRY, (value & 0x01) != 0);
+        
+        // Shift right
+        value = value >> 1;
+        
+        write16(address, value);
+        updateNZ16(value);
+    }
+}
+
+void CPU65c816::op_LSR_A() {
+    // LSR - Logical Shift Right (accumulator)
+    
+    if (isMemory8Bit()) {
+        uint8 value = registers.A & 0xFF;
+        
+        setFlag(FLAG_CARRY, (value & 0x01) != 0);
+        value = value >> 1;
+        
+        registers.A = (registers.A & 0xFF00) | value;
+        updateNZ8(value);
+    } else {
+        setFlag(FLAG_CARRY, (registers.A & 0x01) != 0);
+        registers.A = registers.A >> 1;
+        updateNZ16(registers.A);
+    }
+}
+
+void CPU65c816::op_ROL(uint32 address) {
+    // ROL - Rotate Left (memory)
+    // Shifts all bits left one position. Carry goes into bit 0 and bit 7/15 goes to carry
+    
+    if (isMemory8Bit()) {
+        uint8 value = read8(address);
+        bool oldCarry = getFlag(FLAG_CARRY);
+        
+        // Bit 7 goes to carry
+        setFlag(FLAG_CARRY, (value & 0x80) != 0);
+        
+        // Shift left and insert old carry at bit 0
+        value = ((value << 1) & 0xFF) | (oldCarry ? 1 : 0);
+        
+        write8(address, value);
+        updateNZ8(value);
+    } else {
+        uint16 value = read16(address);
+        bool oldCarry = getFlag(FLAG_CARRY);
+        
+        // Bit 15 goes to carry
+        setFlag(FLAG_CARRY, (value & 0x8000) != 0);
+        
+        // Shift left and insert old carry at bit 0
+        value = ((value << 1) & 0xFFFF) | (oldCarry ? 1 : 0);
+        
+        write16(address, value);
+        updateNZ16(value);
+    }
+}
+
+void CPU65c816::op_ROL_A() {
+    // ROL - Rotate Left (accumulator)
+    
+    if (isMemory8Bit()) {
+        uint8 value = registers.A & 0xFF;
+        bool oldCarry = getFlag(FLAG_CARRY);
+        
+        setFlag(FLAG_CARRY, (value & 0x80) != 0);
+        value = ((value << 1) & 0xFF) | (oldCarry ? 1 : 0);
+        
+        registers.A = (registers.A & 0xFF00) | value;
+        updateNZ8(value);
+    } else {
+        bool oldCarry = getFlag(FLAG_CARRY);
+        
+        setFlag(FLAG_CARRY, (registers.A & 0x8000) != 0);
+        registers.A = ((registers.A << 1) & 0xFFFF) | (oldCarry ? 1 : 0);
+        updateNZ16(registers.A);
+    }
+}
+
+void CPU65c816::op_ROR(uint32 address) {
+    // ROR - Rotate Right (memory)
+    // Shifts all bits right one position. Carry goes into bit 7/15 and bit 0 goes to carry
+    
+    if (isMemory8Bit()) {
+        uint8 value = read8(address);
+        bool oldCarry = getFlag(FLAG_CARRY);
+        
+        // Bit 0 goes to carry
+        setFlag(FLAG_CARRY, (value & 0x01) != 0);
+        
+        // Shift right and insert old carry at bit 7
+        value = (value >> 1) | (oldCarry ? 0x80 : 0);
+        
+        write8(address, value);
+        updateNZ8(value);
+    } else {
+        uint16 value = read16(address);
+        bool oldCarry = getFlag(FLAG_CARRY);
+        
+        // Bit 0 goes to carry
+        setFlag(FLAG_CARRY, (value & 0x01) != 0);
+        
+        // Shift right and insert old carry at bit 15
+        value = (value >> 1) | (oldCarry ? 0x8000 : 0);
+        
+        write16(address, value);
+        updateNZ16(value);
+    }
+}
+
+void CPU65c816::op_ROR_A() {
+    // ROR - Rotate Right (accumulator)
+    
+    if (isMemory8Bit()) {
+        uint8 value = registers.A & 0xFF;
+        bool oldCarry = getFlag(FLAG_CARRY);
+        
+        setFlag(FLAG_CARRY, (value & 0x01) != 0);
+        value = (value >> 1) | (oldCarry ? 0x80 : 0);
+        
+        registers.A = (registers.A & 0xFF00) | value;
+        updateNZ8(value);
+    } else {
+        bool oldCarry = getFlag(FLAG_CARRY);
+        
+        setFlag(FLAG_CARRY, (registers.A & 0x01) != 0);
+        registers.A = (registers.A >> 1) | (oldCarry ? 0x8000 : 0);
+        updateNZ16(registers.A);
+    }
+}
+
+void CPU65c816::op_CLC() {
+    // CLC - Clear Carry Flag
+    setFlag(FLAG_CARRY, false);
+}
+
+void CPU65c816::op_SEC() {
+    // SEC - Set Carry Flag
+    setFlag(FLAG_CARRY, true);
+}
+
+void CPU65c816::op_CLI() {
+    // CLI - Clear Interrupt Disable Flag
+    setFlag(FLAG_IRQ_DISABLE, false);
+}
+
+void CPU65c816::op_SEI() {
+    // SEI - Set Interrupt Disable Flag
+    setFlag(FLAG_IRQ_DISABLE, true);
+}
+
+void CPU65c816::op_CLV() {
+    // CLV - Clear Overflow Flag
+    setFlag(FLAG_OVERFLOW, false);
+}
+
+void CPU65c816::op_CLD() {
+    // CLD - Clear Decimal Flag
+    setFlag(FLAG_DECIMAL, false);
+}
+
+void CPU65c816::op_SED() {
+    // SED - Set Decimal Flag
+    setFlag(FLAG_DECIMAL, true);
+}
+
+void CPU65c816::op_REP() {
+    // REP - Reset Processor Status Bits
+    // Clears bits in P register based on immediate operand
+    // In emulation mode, M and X flags (bits 4 and 5) cannot be cleared
+    
+    uint8 mask = fetchByte();
+    
+    if (registers.E) {
+        // In emulation mode, preserve M and X flags
+        mask &= ~0x30;
+    }
+    
+    registers.P &= ~mask;  // Clear the bits specified by mask
+}
+
+void CPU65c816::op_SEP() {
+    // SEP - Set Processor Status Bits
+    // Sets bits in P register based on immediate operand
+    
+    uint8 mask = fetchByte();
+    
+    registers.P |= mask;  // Set the bits specified by mask
+    
+    // In emulation mode, M and X are always set
+    if (registers.E) {
+        registers.P |= 0x30;
+    }
+}
+
+void CPU65c816::op_XCE() {
+    // XCE - Exchange Carry and Emulation flags
+    // Swaps the Carry flag with the Emulation mode flag
+    // This is how you switch between emulation and native mode
+    
+    bool oldCarry = getFlag(FLAG_CARRY);
+    bool oldEmulation = registers.E;
+    
+    setFlag(FLAG_CARRY, oldEmulation);
+    registers.E = oldCarry;
+    
+    // When entering emulation mode, set M and X flags
+    if (registers.E) {
+        registers.P |= 0x30;  // Force 8-bit mode
+        // Also reset high bytes of index registers and stack pointer
+        registers.X &= 0xFF;
+        registers.Y &= 0xFF;
+        registers.SP = 0x0100 | (registers.SP & 0xFF);
+    }
+}
+
+void CPU65c816::op_TSB(uint32 address) {
+    // TSB - Test and Set Bits
+    // Tests bits (like BIT) and then sets those bits in memory
+    // Z flag reflects the test result (A & memory)
+    
+    if (isMemory8Bit()) {
+        uint8 value = read8(address);
+        uint8 a = registers.A & 0xFF;
+        
+        // Test: set Z if (A & memory) == 0
+        setFlag(FLAG_ZERO, (a & value) == 0);
+        
+        // Set: memory |= A
+        value |= a;
+        write8(address, value);
+    } else {
+        uint16 value = read16(address);
+        uint16 a = registers.A;
+        
+        // Test: set Z if (A & memory) == 0
+        setFlag(FLAG_ZERO, (a & value) == 0);
+        
+        // Set: memory |= A
+        value |= a;
+        write16(address, value);
+    }
+}
+
+void CPU65c816::op_TRB(uint32 address) {
+    // TRB - Test and Reset Bits
+    // Tests bits (like BIT) and then clears those bits in memory
+    // Z flag reflects the test result (A & memory)
+    
+    if (isMemory8Bit()) {
+        uint8 value = read8(address);
+        uint8 a = registers.A & 0xFF;
+        
+        // Test: set Z if (A & memory) == 0
+        setFlag(FLAG_ZERO, (a & value) == 0);
+        
+        // Reset: memory &= ~A
+        value &= ~a;
+        write8(address, value);
+    } else {
+        uint16 value = read16(address);
+        uint16 a = registers.A;
+        
+        // Test: set Z if (A & memory) == 0
+        setFlag(FLAG_ZERO, (a & value) == 0);
+        
+        // Reset: memory &= ~A
+        value &= ~a;
+        write16(address, value);
+    }
+}
+
+void CPU65c816::op_MVP() {
+    // MVP - Block Move Previous (decrement addresses)
+    // Moves (A + 1) bytes from source to destination, decrementing addresses
+    // Source bank in X, destination bank in Y (first operand byte)
+    // Source address in X, destination address in Y
+    
+    uint8 destBank = fetchByte();  // First operand
+    uint8 srcBank = fetchByte();   // Second operand
+    
+    // Copy one byte from source to destination
+    uint32 srcAddr = (static_cast<uint32>(srcBank) << 16) | registers.X;
+    uint32 destAddr = (static_cast<uint32>(destBank) << 16) | registers.Y;
+    
+    uint8 data = read8(srcAddr);
+    write8(destAddr, data);
+    
+    // Decrement addresses
+    registers.X = (registers.X - 1) & 0xFFFF;
+    registers.Y = (registers.Y - 1) & 0xFFFF;
+    
+    // Decrement counter
+    if (registers.A == 0) {
+        registers.A = 0xFFFF;  // Will underflow
+    } else {
+        registers.A = (registers.A - 1) & 0xFFFF;
+        // If not done, repeat this instruction (don't advance PC)
+        registers.PC -= 3;  // Back to start of MVP instruction
+    }
+    
+    // Update data bank register
+    registers.DBR = destBank;
+}
+
+void CPU65c816::op_MVN() {
+    // MVN - Block Move Next (increment addresses)
+    // Moves (A + 1) bytes from source to destination, incrementing addresses
+    // Source bank in X, destination bank in Y (first operand byte)
+    // Source address in X, destination address in Y
+    
+    uint8 destBank = fetchByte();  // First operand
+    uint8 srcBank = fetchByte();   // Second operand
+    
+    // Copy one byte from source to destination
+    uint32 srcAddr = (static_cast<uint32>(srcBank) << 16) | registers.X;
+    uint32 destAddr = (static_cast<uint32>(destBank) << 16) | registers.Y;
+    
+    uint8 data = read8(srcAddr);
+    write8(destAddr, data);
+    
+    // Increment addresses
+    registers.X = (registers.X + 1) & 0xFFFF;
+    registers.Y = (registers.Y + 1) & 0xFFFF;
+    
+    // Decrement counter
+    if (registers.A == 0) {
+        registers.A = 0xFFFF;  // Will underflow
+    } else {
+        registers.A = (registers.A - 1) & 0xFFFF;
+        // If not done, repeat this instruction (don't advance PC)
+        registers.PC -= 3;  // Back to start of MVN instruction
+    }
+    
+    // Update data bank register
+    registers.DBR = destBank;
+}
+
+void CPU65c816::op_BRK() {
+    // BRK - Break (Software Interrupt)
+    // Triggers a software interrupt
+    // In emulation mode: jumps to vector at 0xFFFE-0xFFFF
+    // In native mode: jumps to vector at 0xFFE6-0xFFE7
+    
+    // Skip the signature byte
+    fetchByte();
+    
+    if (registers.E) {
+        // Emulation mode behavior (like 6502)
+        // Push PC+1 (already incremented past signature byte)
+        push16(registers.PC);
+        
+        // Push P with B flag set
+        push8(registers.P | 0x10);  // Set B flag
+        
+        // Set I flag (disable interrupts)
+        setFlag(FLAG_IRQ_DISABLE, true);
+        
+        // Clear D flag (on real 6502, not enforced but conventional)
+        setFlag(FLAG_DECIMAL, false);
+        
+        // Jump to BRK vector
+        registers.PC = read16(0xFFFE);
+        registers.PBR = 0;
+    } else {
+        // Native mode behavior
+        // Push PBR
+        push8(registers.PBR);
+        
+        // Push PC
+        push16(registers.PC);
+        
+        // Push P
+        push8(registers.P);
+        
+        // Set I flag
+        setFlag(FLAG_IRQ_DISABLE, true);
+        
+        // Clear D flag
+        setFlag(FLAG_DECIMAL, false);
+        
+        // Jump to BRK vector
+        registers.PC = read16(0xFFE6);
+        registers.PBR = 0;
+    }
+}
+
+void CPU65c816::op_COP() {
+    // COP - Coprocessor instruction
+    // Similar to BRK but uses different vector
+    // Used for coprocessor interface or debugging
+    
+    // Skip the signature byte
+    fetchByte();
+    
+    if (registers.E) {
+        // Emulation mode: use 0xFFF4-0xFFF5
+        push16(registers.PC);
+        push8(registers.P);
+        
+        setFlag(FLAG_IRQ_DISABLE, true);
+        setFlag(FLAG_DECIMAL, false);
+        
+        registers.PC = read16(0xFFF4);
+        registers.PBR = 0;
+    } else {
+        // Native mode: use 0xFFE4-0xFFE5
+        push8(registers.PBR);
+        push16(registers.PC);
+        push8(registers.P);
+        
+        setFlag(FLAG_IRQ_DISABLE, true);
+        setFlag(FLAG_DECIMAL, false);
+        
+        registers.PC = read16(0xFFE4);
+        registers.PBR = 0;
+    }
+}
+
+void CPU65c816::op_WDM() {
+    // WDM - Reserved for future expansion
+    // On actual hardware, this is a 2-byte NOP
+    // The second byte is reserved for future use
+    fetchByte();  // Skip reserved byte
+    // Do nothing else
+}
+
+void CPU65c816::op_STP() {
+    // STP - Stop the processor
+    // Halts execution until reset
+    // For emulator purposes, we can set a flag or just halt
+    // In a real implementation, this would stop the CPU clock
+    
+    // For now, just set PC to itself to create an infinite loop
+    // The emulator framework can detect this if needed
+    registers.PC -= 1;  // Stay at STP instruction
+    
+    // In a more sophisticated implementation, you'd set a "stopped" flag
+    // that the emulator checks before each instruction
+}
+
+void CPU65c816::op_WAI() {
+    // WAI - Wait for Interrupt
+    // Stops execution until an interrupt occurs (IRQ or NMI)
+    // For emulator purposes, similar to STP but waits for interrupt
+    
+    // For now, implement as a simple wait
+    // In real implementation, this would wait for interrupt signal
+    registers.PC -= 1;  // Stay at WAI instruction
+    
+    // A proper implementation would check for pending interrupts
+    // before each instruction and resume when one occurs
 }
